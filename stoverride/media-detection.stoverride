@@ -1,7 +1,7 @@
 name: 增强流媒体检测
 desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok
 author: xiaomingyve1
-update-url: https://github.com/xiaomingyve1/Stash
+update-url: https://github.com/xiaomingyve1/stash
 enable: true
 tiles:
   - name: liumeitijiance
@@ -10,7 +10,7 @@ tiles:
     background-color: "#FF2D55"
 script-providers:
   liumeitijiance:
-    url: https://raw.githubusercontent.com/xiaomingyve1/Stash/main/Script/media-detection.js
+    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
     no-cache: false
     schedule:
       - cron: "* * * * *"
