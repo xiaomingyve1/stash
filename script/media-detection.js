@@ -118,7 +118,7 @@ async function check_netflix() {
     })
     .then((code) => {
       if (code === 'Not Found') return Promise.reject('Not Available');
-      res += '仅解锁自制剧，区域: ' + code.toUpperCase();
+      res += '仅自制剧，区域: ' + code.toUpperCase();
       return Promise.reject('BreakSignal');
     })
     .catch((error) => {
