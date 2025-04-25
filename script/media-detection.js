@@ -87,28 +87,25 @@ function getFormattedTime() {
     });
 })();
 
-// ================ Netflix 检测 ================
+// ================ Netflix ================
 async function check_netflix() {
   function inner_check(filmId) {
     return new Promise((resolve, reject) => {
-      $httpClient.get(
-        {
-          url: 'https://www.netflix.com/title/' + filmId,
-          headers: REQUEST_HEADERS
-        },
-        (error, response) => {
-          if (error) return reject('Error');
-          if (response.status === 403) return reject('Not Available');
-          if (response.status === 404) return resolve('Not Found');
-          if (response.status === 200) {
-            let url = response.headers['x-originating-url'];
-            let region = url.split('/')[3].split('-')[0];
-            if (region === 'title') region = 'us';
-            return resolve(region);
-          }
-          reject('Error');
+      $httpClient.get({
+        url: 'https://www.netflix.com/title/' + filmId,
+        headers: REQUEST_HEADERS
+      }, (error, response) => {
+        if (error) return reject('Error');
+        if (response.status === 403) return reject('Not Available');
+        if (response.status === 404) return resolve('Not Found');
+        if (response.status === 200) {
+          let url = response.headers['x-originating-url'];
+          let region = url.split('/')[3].split('-')[0];
+          if (region === 'title') region = 'us';
+          return resolve(region);
         }
-      );
+        reject('Error');
+      });
     });
   }
 
@@ -132,7 +129,7 @@ async function check_netflix() {
   return res;
 }
 
-// ================ Disney+ 检测 ================
+// ================ Disney+ ================
 async function check_disneyplus() {
   let res = 'Disney+: ';
   try {
