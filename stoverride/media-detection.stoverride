@@ -12,8 +12,6 @@ script-providers:
   liumeitijiance:
     url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
     no-cache: false
-    script-type: http-response
-    timeout: 30
     schedule:
       - cron: "* * * * *"
       - interval: 300
