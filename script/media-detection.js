@@ -1,19 +1,11 @@
-// —— 常量与工具函数 ——
+// ================ 配置与常量 ================
 const REQUEST_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36',
   'Accept-Language': 'en',
   'Cache-Control': 'no-cache, no-store, must-revalidate',
   'Pragma': 'no-cache'
 };
-const TIMEOUTS = {
-  network: 5000,
-  netflix: 5000,
-  disney: 7000,
-  chatgpt: 10000,
-  youtube: 5000,
-  tiktok: 5000
-};
-
 const STATUS = {
   COMING: 2,
   AVAILABLE: 1,
@@ -22,189 +14,186 @@ const STATUS = {
   ERROR: -2
 };
 
-function timeout(ms) {
-  return new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
-}
-
+// ================ 网络连通性检查 ================
 async function checkNetwork() {
-  try {
-    await Promise.race([
-      new Promise((res, rej) => {
-        $httpClient.get({ url: 'https://www.google.com/generate_204', timeout: TIMEOUTS.network }, (e, r) => {
-          if (e || r.status !== 204) return rej(e || new Error('NoNetwork'));
-          res();
-        });
-      }),
-      timeout(TIMEOUTS.network)
-    ]);
-    return true;
-  } catch {
-    return false;
-  }
+  return new Promise((resolve, reject) => {
+    $httpClient.get({ url: 'https://www.google.com/generate_204', timeout: 5000 },
+      (err, resp) => (err || resp.status !== 204) ? reject('网络不可用') : resolve());
+  });
 }
 
-function getTime() {
+// ================ 时间工具 ================
+function getTimestamp() {
   return new Date().toLocaleTimeString('zh-CN', { hour12: false });
 }
 
-function withDisconnect(fn) {
-  return async function(...args) {
-    // 切换前打断
-    $surge && $surge.emit && $surge.emit('disconnect');
-    const result = await fn(...args);
-    // 切换后打断
-    $surge && $surge.emit && $surge.emit('disconnect');
-    return result;
-  };
+// ================ 断开连接 ================
+function disconnectAll() {
+  $network.disconnect && $network.disconnect();
 }
 
-// —— 主流程 ——
+// ================ 主流程 ================
 ;(async () => {
   const panel = { title: '多平台流媒体解锁检测', content: '', icon: 'play.tv.fill', 'icon-color': '#FF2D55' };
 
-  if (!await checkNetwork()) {
-    panel.content = `最后刷新时间: ${getTime()}\n────────────────\n网络不可用，请检查连接`;
-    return $done(panel);
+  // 1. 开始前断开连接
+  disconnectAll();
+
+  // 2. 网络预检
+  try {
+    await checkNetwork();
+  } catch (e) {
+    panel.content = `最后刷新时间: ${getTimestamp()}\n────────────────\n网络不可用，请检查连接`;
+    $done(panel);
+    return;
   }
 
-  // 并行检测
-  const tasks = [
-    withDisconnect(checkNetflix)(),
-    withDisconnect(checkDisneyPlus)(),
-    withDisconnect(checkChatGPT)(),
-    withDisconnect(checkYouTube)(),
-    withDisconnect(checkTikTok)()
-  ];
-
+  // 3. 并行检测各平台
+  const tasks = [checkNetflix(), checkDisneyPlus(), checkChatGPT(), checkYouTube(), checkTikTok()];
   try {
     const results = await Promise.all(tasks);
-    panel.content = [`最后刷新时间: ${getTime()}`, '────────────────', ...results].join('\n');
+    panel.content = [`最后刷新时间: ${getTimestamp()}`, '────────────────', ...results].join('\n');
   } catch (e) {
     console.error('检测异常:', e);
-    panel.content = `最后刷新时间: ${getTime()}\n────────────────\n检测失败，请刷新面板`;
-  } finally {
-    $done(panel);
+    panel.content = `最后刷新时间: ${getTimestamp()}\n────────────────\n检测失败，请刷新面板`;
   }
+
+  // 4. 结束后断开连接
+  disconnectAll();
+  $done(panel);
 })();
 
-// —— Netflix 检测 ——
+// ================ Netflix 检测 ================
 async function checkNetflix() {
-  const titleIds = [81280792, 80018499];
-  for (let id of titleIds) {
-    try {
-      const code = await Promise.race([
-        new Promise((res, rej) => {
-          $httpClient.get({ url: `https://www.netflix.com/title/${id}`, headers: REQUEST_HEADERS, timeout: TIMEOUTS.netflix }, (e, r) => {
-            if (e) return rej(e);
-            if (r.status === 403) return rej(new Error('NotAvailable'));
-            if (r.status === 404) return res('NotFound');
-            if (r.status === 200) {
-              const url = r.headers['x-originating-url'];
-              let region = url.split('/')[3].split('-')[0] || 'us';
-              if (region === 'title') region = 'us';
-              return res(region.toUpperCase());
-            }
-            rej(new Error('Error'));
-          });
-        }),
-        timeout(TIMEOUTS.netflix)
-      ]);
-      if (code === 'NotFound') continue;
-      return `Netflix: 已解锁，区域: ${code}`;
-    } catch (e) {
-      if (e.message === 'NotAvailable') break;
-      continue;
-    }
-  }
-  return 'Netflix: 检测失败，请刷新面板';
-}
-
-// —— Disney+ 检测 ——
-async function testDisney() {
-  const home = new Promise((res, rej) => {
-    $httpClient.get({ url: 'https://www.disneyplus.com/', headers: REQUEST_HEADERS, timeout: TIMEOUTS.disney }, (e, r, d) => {
-      if (e || r.status !== 200 || d.includes('Sorry, Disney+ is not available')) return rej(e || new Error());
-      const m = d.match(/Region: ([A-Za-z]{2})[\s\S]*?CNBL: ([12])/);
-      res({ region: m ? m[1] : '', cnbl: m ? m[2] : '' });
-    });
-  });
-  const info = new Promise((res, rej) => {
-    $httpClient.post({ url: 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql', headers: { ...REQUEST_HEADERS, 'Content-Type': 'application/json', Authorization: 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84' }, body: JSON.stringify({ query: 'mutation...', variables: { input: { applicationRuntime: 'chrome', attributes: {/*...*/}, deviceFamily:'browser', deviceLanguage:'en', deviceProfile:'macosx' } } }) }, (e, r, d) => {
-      if (e || r.status !== 200) return rej(e || new Error());
-      try { const json = JSON.parse(d); const ext = json.extensions.sdk.session; res({ inSupportedLocation: ext.inSupportedLocation, countryCode: ext.location.countryCode }); }
-      catch { rej(new Error()); }
-    });
+  const checkTitle = async (id) => new Promise((res, rej) => {
+    $httpClient.get({ url: `https://www.netflix.com/title/${id}`, headers: REQUEST_HEADERS },
+      (err, resp) => {
+        if (err) return rej();
+        if (resp.status === 404) return res(null);
+        if (resp.status === 200) {
+          const origin = resp.headers['x-originating-url'] || '';
+          let region = origin.split('/')[3]?.split('-')[0] || 'us';
+          if (region === 'title') region = 'us';
+          return res(region);
+        }
+        rej();
+      });
   });
 
+  let label = 'Netflix: ';
   try {
-    const { region } = await Promise.race([home, timeout(TIMEOUTS.disney)]);
-    const loc = await Promise.race([info, timeout(TIMEOUTS.disney)]);
-    return { region: (loc.countryCode || region).toUpperCase(), status: loc.inSupportedLocation ? STATUS.AVAILABLE : STATUS.COMING };
+    let region = await checkTitle(81280792) || await checkTitle(80018499);
+    if (!region) throw 'Unavailable';
+    label += `已解锁，区域: ${region.toUpperCase()}`;
   } catch {
-    return { status: STATUS.ERROR };
+    label += '检测失败，请刷新面板';
   }
+  return label;
 }
 
+// ================ Disney+ 检测 ================
 async function checkDisneyPlus() {
+  const label = 'Disney+: ';
   try {
     const { region, status } = await testDisney();
-    if (status === STATUS.AVAILABLE) return `Disney+: 已解锁，区域: ${region}`;
-    if (status === STATUS.COMING) return `Disney+: 即将上线，区域: ${region}`;
+    if (status === STATUS.AVAILABLE) return label + `已解锁，区域: ${region}`;
+    if (status === STATUS.COMING) return label + `即将上线，区域: ${region}`;
   } catch {}
-  return 'Disney+: 检测失败，请刷新面板';
+  return label + '检测失败，请刷新面板';
 }
 
-// —— ChatGPT 检测 ——
+async function testDisney() {
+  const race = (p, t) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej('timeout'), t))]);
+  const home = await race(getDisneyHome(), 7000);
+  const info = await race(getDisneyLocation(), 7000);
+  const region = info.countryCode || home.region;
+  return { region, status: info.inSupportedLocation ? STATUS.AVAILABLE : STATUS.COMING };
+}
+
+function getDisneyHome() {
+  return new Promise((res, rej) => {
+    $httpClient.get({ url: 'https://www.disneyplus.com/', headers: REQUEST_HEADERS },
+      (err, resp, data) => {
+        if (err || resp.status !== 200 || data.includes('not available in your region')) return rej();
+        const m = data.match(/Region: ([A-Za-z]{2})[\s\S]*?CNBL: ([12])/);
+        res({ region: m?.[1] || '', cnbl: m?.[2] || '' });
+      });
+  });
+}
+
+function getDisneyLocation() {
+  return new Promise((res, rej) => {
+    $httpClient.post({
+      url: 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql',
+      headers: Object.assign({}, REQUEST_HEADERS, { Authorization: 'ZGlzbmV5...'}),
+      body: JSON.stringify({ /* mutation payload */ })
+    }, (err, resp, body) => {
+      if (err || resp.status !== 200) return rej();
+      const json = JSON.parse(body);
+      const sess = json.extensions?.sdk?.session;
+      res({ inSupportedLocation: sess.inSupportedLocation, countryCode: sess.location.countryCode });
+    });
+  });
+}
+
+// ================ ChatGPT 检测 ================
 async function checkChatGPT() {
+  const label = 'ChatGPT: ';
   try {
     const { status, country } = await Promise.race([
-      timeout(TIMEOUTS.chatgpt).then(() => ({ status: STATUS.TIMEOUT })),
+      new Promise(res => setTimeout(() => res({ status: STATUS.TIMEOUT }), 10000)),
       new Promise(res => {
-        $httpClient.get({ url: 'https://chat.openai.com/cdn-cgi/trace', headers: REQUEST_HEADERS, timeout: TIMEOUTS.chatgpt }, (e, r, d) => {
-          if (e || r.status !== 200) return res({ status: STATUS.NOT_AVAILABLE });
-          const m = d.match(/loc=([A-Z]{2})/);
-          res({ status: m ? STATUS.AVAILABLE : STATUS.NOT_AVAILABLE, country: m ? m[1] : '' });
-        });
+        $httpClient.get({ url: 'https://chat.openai.com/cdn-cgi/trace', headers: REQUEST_HEADERS },
+          (e, r, data) => {
+            if (e || r.status !== 200) return res({ status: STATUS.NOT_AVAILABLE });
+            const m = data.match(/loc=([A-Z]{2})/);
+            res(m ? { status: STATUS.AVAILABLE, country: m[1] } : { status: STATUS.NOT_AVAILABLE });
+          });
       })
     ]);
-    if (status === STATUS.AVAILABLE) return `ChatGPT: 已解锁，区域: ${country}`;
-  } catch {}
-  return 'ChatGPT: 检测失败，请刷新面板';
+    return label + (status === STATUS.AVAILABLE
+      ? `已解锁，区域: ${country}`
+      : '检测失败，请刷新面板');
+  } catch {
+    return label + '检测失败，请刷新面板';
+  }
 }
 
-// —— YouTube Premium 检测 ——
+// ================ YouTube Premium 检测 ================
 async function checkYouTube() {
+  const label = 'YouTube: ';
   try {
-    const region = await Promise.race([
-      timeout(TIMEOUTS.youtube).then(() => { throw new Error(); }),
-      new Promise((res, rej) => {
-        $httpClient.get({ url: 'https://www.youtube.com/premium', headers: REQUEST_HEADERS, timeout: TIMEOUTS.youtube }, (e, r, d) => {
-          if (e || r.status !== 200) return rej(e);
-          if (d.includes('Premium is not available in your country')) return res(null);
-          const m = /"countryCode":"(.*?)"/.exec(d);
+    const region = await new Promise((res, rej) => {
+      $httpClient.get({ url: 'https://www.youtube.com/premium', headers: REQUEST_HEADERS },
+        (e, r, d) => {
+          if (e || r.status !== 200) return rej();
+          if (d.includes('not available in your country')) return res(null);
+          const m = /"countryCode":"(.*?)"/gm.exec(d);
           res(m ? m[1] : (d.includes('www.google.cn') ? 'CN' : 'US'));
         });
-      })
-    ]);
-    if (region) return `YouTube: 已解锁，区域: ${region.toUpperCase()}`;
-  } catch {}
-  return 'YouTube: 检测失败，请刷新面板';
+    });
+    return label + (region ? `已解锁，区域: ${region}` : '检测失败，请刷新面板');
+  } catch {
+    return label + '检测失败，请刷新面板';
+  }
 }
 
-// —— TikTok 检测 ——
+// ================ TikTok 检测 ================
 async function checkTikTok() {
+  const label = 'TikTok: ';
   try {
-    const { error, region } = await Promise.race([
-      timeout(TIMEOUTS.tiktok).then(() => ({ error: true })),
+    const resp = await Promise.race([
+      new Promise(res => setTimeout(() => res({ error: true }), 5000)),
       new Promise(res => {
-        $httpClient.get({ url: 'https://www.tiktok.com/', headers: REQUEST_HEADERS, timeout: TIMEOUTS.tiktok }, (e, r, d) => {
-          if (e || r.status !== 200) return res({ error: true });
-          const m = d.match(/region.*?:.*?"([A-Z]{2})"/);
-          res({ error: false, region: m ? m[1] : 'US' });
-        });
+        $httpClient.get({ url: 'https://www.tiktok.com/', headers: REQUEST_HEADERS },
+          (e, r, d) => res(e || r.status !== 200
+            ? { error: true }
+            : { error: false, region: d.match(/region.*?:.*?\"([A-Z]{2})\"/)?.[1] || 'US' }));
       })
     ]);
-    if (!error) return `TikTok: ${region==='CN'? '受限区域 🚫' : '已解锁，区域: ' + region}`;
-  } catch {}
-  return 'TikTok: 检测失败，请刷新面板';
+    if (resp.error) throw 'err';
+    return label + (resp.region === 'CN' ? '受限区域 🚫' : `已解锁，区域: ${resp.region}`);
+  } catch {
+    return label + '检测失败，请刷新面板';
+  }
 }
