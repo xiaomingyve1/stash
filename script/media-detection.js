@@ -238,7 +238,7 @@ function getLocationInfo() {
   });
 }
 
-// ================ ChatGPT 检测 ================
+// ================ ChatGPT ================
 async function check_chatgpt() {
   let result = 'ChatGPT: ';
   try {
@@ -273,7 +273,7 @@ async function check_chatgpt() {
   return result;
 }
 
-// ================ YouTube Premium 检测 ================
+// ================ YouTube Premium ================
 async function check_youtube_premium() {
   function inner_check() {
     return new Promise((resolve, reject) => {
@@ -312,7 +312,7 @@ async function check_youtube_premium() {
   return res;
 }
 
-// ================ TikTok 检测 ================
+// ================ TikTok ================
 async function check_tiktok() {
   let res = 'TikTok: ';
   try {
@@ -343,7 +343,7 @@ async function check_tiktok() {
   return res;
 }
 
-// ================ 通用超时函数 ================
+// ================ 通用函数 ================
 function timeout(delay = 5000) {
   return new Promise((_, reject) =>
     setTimeout(() => reject('Timeout'), delay)
