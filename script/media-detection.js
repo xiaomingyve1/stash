@@ -61,14 +61,34 @@ const UA = REQUEST_HEADERS['User-Agent'];
     });
   }
 
-  // —— 并行检测 Netflix / Disney+ / ChatGPT / YouTube / TikTok —— 
+  // —— Disney+ 检测 —— 
+  let disneyStatus = { region: '', status: STATUS_ERROR };
+  try {
+    disneyStatus = await testDisneyPlus();
+  } catch (error) {
+    console.log('Disney+检测异常:', error);
+  }
+
+  // —— 并行检测 Netflix / ChatGPT / YouTube / TikTok —— 
   await Promise.all([
     check_netflix(),
-    check_disneyplus(),
     check_chatgpt(),
     check_youtube_premium(),
     check_tiktok()
   ]).then((result) => {
+    // 插入 Disney+ 结果到第 3 行
+    let disney_result = '';
+    const { region, status } = disneyStatus;
+    if (status === STATUS_AVAILABLE) {
+      disney_result = 'Disney+: 已解锁，区域: ' + region.toUpperCase();
+    } else if (status === STATUS_COMING) {
+      disney_result = 'Disney+: 检测失败，请刷新面板';
+    } else {
+      disney_result = 'Disney+: 检测失败，请刷新面板';
+    }
+    result.splice(2, 0, disney_result);
+
+    // 插入时间戳到最前面
     const timeHeader = [
       `最后刷新时间: ${getFormattedTime()}`,
       '────────────────'
@@ -87,7 +107,7 @@ const UA = REQUEST_HEADERS['User-Agent'];
   });
 })();
 
-// ================ Netflix ================
+// ================ Netflix 检测 ================
 async function check_netflix() {
   function inner_check(filmId) {
     return new Promise((resolve, reject) => {
@@ -113,7 +133,7 @@ async function check_netflix() {
   await inner_check(81280792)
     .then((code) => {
       if (code === 'Not Found') return inner_check(80018499);
-      res += '已解锁，区域: ' + code.toUpperCase();
+      res += '已完整解锁，区域: ' + code.toUpperCase();
       return Promise.reject('BreakSignal');
     })
     .then((code) => {
@@ -129,58 +149,25 @@ async function check_netflix() {
   return res;
 }
 
-// ================ Disney+ ================
-async function testDisneyPlus() {
-  try {
-    let { region, cnbl } = await Promise.race([testHomePage(), timeout(7000)]);
-    let info = await Promise.race([getLocationInfo(), timeout(7000)]);
-    let countryCode = info.countryCode ?? region;
-    let inSupportedLocation = info.inSupportedLocation;
-    if (inSupportedLocation === false || inSupportedLocation === 'false') {
-      return { region: countryCode, status: STATUS_COMING };
-    } else {
-      return { region: countryCode, status: STATUS_AVAILABLE };
-    }
-  } catch (error) {
-    console.log('Disney+ error:', error);
-    return { status: STATUS_ERROR };
-  }
-}
-
-async function check_disneyplus() {
-  let res = 'Disney+: ';
-  try {
-    const { region, status } = await testDisneyPlus();
-    if (status === STATUS_AVAILABLE) {
-      res += '已解锁，区域: ' + region.toUpperCase();
-    } else if (status === STATUS_COMING) {
-      res += '即将上线，区域: ' + region.toUpperCase();
-    } else {
-      res += '检测失败，请刷新面板';
-    }
-  } catch (error) {
-    console.log('Disney+检测异常:', error);
-    res += '检测失败，请刷新面板';
-  }
-  return res;
-}
-
-// ================ ChatGPT ================
+// ================ ChatGPT 检测 ================
 async function check_chatgpt() {
   let result = 'ChatGPT: ';
   try {
-    let { status, country } = await Promise.race([timeout(10000), new Promise((resolve) => {
-      $httpClient.get({
-        url: 'https://chat.openai.com/cdn-cgi/trace',
-        headers: REQUEST_HEADERS
-      }, (error, response, data) => {
-        if (error) return resolve({ status: STATUS_ERROR });
-        if (response.status !== 200) return resolve({ status: STATUS_NOT_AVAILABLE });
-        let m = data.match(/loc=([A-Z]{2})/);
-        if (m) resolve({ status: STATUS_AVAILABLE, country: m[1] });
-        else resolve({ status: STATUS_NOT_AVAILABLE });
-      });
-    })]);
+    let { status, country } = await Promise.race([
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://chat.openai.com/cdn-cgi/trace',
+          headers: REQUEST_HEADERS
+        }, (error, response, data) => {
+          if (error) return resolve({ status: STATUS_ERROR });
+          if (response.status !== 200) return resolve({ status: STATUS_NOT_AVAILABLE });
+          let m = data.match(/loc=([A-Z]{2})/);
+          if (m) resolve({ status: STATUS_AVAILABLE, country: m[1] });
+          else resolve({ status: STATUS_NOT_AVAILABLE });
+        });
+      }),
+      timeout(10000)
+    ]);
     if (status === STATUS_AVAILABLE) {
       result += `已解锁，区域: ${country.toUpperCase()}`;
     } else {
@@ -192,7 +179,7 @@ async function check_chatgpt() {
   return result;
 }
 
-// ================ YouTube Premium ================
+// ================ YouTube Premium 检测 ================
 async function check_youtube_premium() {
   function inner_check() {
     return new Promise((resolve, reject) => {
@@ -224,26 +211,47 @@ async function check_youtube_premium() {
   return res;
 }
 
-// ================ TikTok ================
+// ================ TikTok 检测 ================
 async function check_tiktok() {
   let res = 'TikTok: ';
   try {
-    let response = await Promise.race([timeout(5000), new Promise((resolve) => {
-      $httpClient.get({
-        url: 'https://www.tiktok.com/',
-        headers: REQUEST_HEADERS
-      }, (error, response, data) => {
-        if (error || response.status !== 200) return resolve({ error: true });
-        let m = data.match(/region.*?:.*?"([A-Z]{2})"/);
-        resolve({ error: false, region: m ? m[1] : 'US' });
-      });
-    })]);
+    let response = await Promise.race([
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://www.tiktok.com/',
+          headers: REQUEST_HEADERS
+        }, (error, response, data) => {
+          if (error || response.status !== 200) return resolve({ error: true });
+          let m = data.match(/region.*?:.*?"([A-Z]{2})"/);
+          resolve({ error: false, region: m ? m[1] : 'US' });
+        });
+      }),
+      timeout(5000)
+    ]);
     if (response.error) throw new Error();
     res += response.region === 'CN' ? '受限区域 🚫' : `已解锁，区域: ${response.region}`;
   } catch {
     res = 'TikTok: 检测失败，请刷新面板';
   }
   return res;
+}
+
+// ================ Disney+ 检测 ================
+async function testDisneyPlus() {
+  try {
+    let { region, cnbl } = await Promise.race([testHomePage(), timeout(7000)]);
+    let info = await Promise.race([getLocationInfo(), timeout(7000)]);
+    let countryCode = info.countryCode ?? region;
+    let inSupportedLocation = info.inSupportedLocation;
+    if (inSupportedLocation === false || inSupportedLocation === 'false') {
+      return { region: countryCode, status: STATUS_COMING };
+    } else {
+      return { region: countryCode, status: STATUS_AVAILABLE };
+    }
+  } catch (error) {
+    console.log('Disney+ error:', error);
+    return { status: STATUS_ERROR };
+  }
 }
 
 function testHomePage() {
