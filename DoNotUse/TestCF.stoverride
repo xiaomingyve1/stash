@@ -11,7 +11,7 @@ tiles:
 script-providers:
   liumeitijiance:
     url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/DoNotUse/TestCF.js
-    no-cache: false
+    no-cache: true
     schedule:
       - cron: "* * * * *"
       - interval: 300
