@@ -59,32 +59,37 @@ function getFormattedTime() {
     return;
   }
 
-  // —— 并行检测 Netflix / Disney+ / ChatGPT / YouTube / TikTok —— 
-  await Promise.all([
+  // —— 并行检测 Netflix / Disney+ / ChatGPT / YouTube / TikTok / Hulu / HBO Max / Amazon —— 
+  const checks = [
     check_netflix(),
     check_disneyplus(),
     check_chatgpt(),
     check_youtube_premium(),
-    check_tiktok()
-  ])
-    .then((result) => {
-      const timeHeader = [
-        `最后刷新时间: ${getFormattedTime()}`,
-        '────────────────'
-      ];
-      panel_result.content = [...timeHeader, ...result].join('\n');
-    })
-    .catch((error) => {
-      console.log('全局检测异常:', error);
-      panel_result.content =
-        `最后刷新时间: ${getFormattedTime()}\n` +
-        '────────────────\n' +
-        '所有检测均失败，请检查网络';
-    })
-    .finally(() => {
-      $done(panel_result);
-      $httpClient.disconnect(); // 检测完毕后断开连接
-    });
+    check_tiktok(),
+    check_hulu(),
+    check_hbomax(),
+    check_amazon()
+  ];
+
+  let results;
+  try {
+    results = await Promise.all(checks);
+    const timeHeader = [
+      `最后刷新时间: ${getFormattedTime()}`,
+      '────────────────'
+    ];
+    panel_result.content = [...timeHeader, ...results].join('\n');
+  } catch (e) {
+    console.log('检测异常:', e);
+    panel_result.content =
+      `最后刷新时间: ${getFormattedTime()}\n` +
+      '────────────────\n' +
+      '部分检测失败，请查看结果';
+  }
+
+  // 输出面板结果并立即断开连接
+  $done(panel_result);
+  $httpClient.disconnect();
 })();
 
 // ================ Netflix ================
@@ -339,6 +344,84 @@ async function check_tiktok() {
       : `已解锁，区域: ${response.region}`;
   } catch {
     res = 'TikTok: 检测失败，请刷新面板';
+  }
+  return res;
+}
+
+// ================ Hulu ================
+async function check_hulu() {
+  let res = 'Hulu: ';
+  try {
+    const data = await new Promise((resolve) => {
+      $httpClient.get(
+        { url: 'https://www.hulu.com/', headers: REQUEST_HEADERS },
+        (error, response, body) => {
+          if (error || response.status !== 200) return resolve({ available: false });
+          resolve({ available: true });
+        }
+      );
+    });
+    if (data.available) {
+      res += '已解锁';
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
+    res += '检测失败，请刷新面板';
+  }
+  return res;
+}
+
+// ================ HBO Max ================
+async function check_hbomax() {
+  let res = 'HBO Max: ';
+  try {
+    const data = await new Promise((resolve) => {
+      $httpClient.get(
+        { url: 'https://www.hbomax.com/', headers: REQUEST_HEADERS },
+        (error, response, body) => {
+          if (error || response.status !== 200) return resolve({ available: false });
+          if (body.includes('HBO Max is not available in your region')) {
+            return resolve({ available: false });
+          }
+          resolve({ available: true });
+        }
+      );
+    });
+    if (data.available) {
+      res += '已解锁';
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
+    res += '检测失败，请刷新面板';
+  }
+  return res;
+}
+
+// ================ Amazon Prime Video ================
+async function check_amazon() {
+  let res = 'Amazon: ';
+  try {
+    const data = await new Promise((resolve) => {
+      $httpClient.get(
+        { url: 'https://www.primevideo.com/', headers: REQUEST_HEADERS },
+        (error, response, body) => {
+          if (error || response.status !== 200) return resolve({ available: false });
+          if (body.includes('Not Available in Your Location')) {
+            return resolve({ available: false });
+          }
+          resolve({ available: true });
+        }
+      );
+    });
+    if (data.available) {
+      res += '已解锁';
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
+    res += '检测失败，请刷新面板';
   }
   return res;
 }
