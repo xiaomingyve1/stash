@@ -349,31 +349,19 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    const data = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({
-          url: 'https://discover.hulu.com/content/v4/hubs/home',
-          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-        }, (error, response, body) => {
-          if (error || response.status !== 200) return resolve(null);
-          try {
-            resolve(JSON.parse(body));
-          } catch {
-            resolve(null);
-          }
-        });
-      })
-    ]);
-
-    if (data && data.country_code && Array.isArray(data.components)) {
-      const region = data.country_code;
-      const hasPlayable = data.components.some(hub => hub.items && hub.items.length > 0);
-      if (hasPlayable) {
-        res += `已解锁，区域: ${region.toUpperCase()}`;
-      } else {
-        res += '检测失败，请刷新面板';
-      }
+    // 1)
+    let home = await Promise.race([huluHome(), timeout(8000)]);
+    // 2)
+    let api = await Promise.race([huluApi(), timeout(8000)]);
+    // 判断
+    if (
+      home &&
+      home.available === true &&
+      api &&
+      api.country_code &&
+      api.items_count > 0
+    ) {
+      res += `已解锁，区域: ${api.country_code.toUpperCase()}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -381,31 +369,54 @@ async function check_hulu() {
     res += '检测失败，请刷新面板';
   }
   return res;
+}
+
+function huluHome() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://discover.hulu.com/content/v4/hubs/home',
+      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+    }, (err, resp, body) => {
+      if (err || resp.status !== 200) return resolve(null);
+      try {
+        let d = JSON.parse(body);
+        let ok = Array.isArray(d.components) && d.components.some(c => c.items && c.items.length>0);
+        resolve({ available: ok });
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
+function huluApi() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://api.hulu.com/v1/account/region',
+      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+    }, (err, resp, body) => {
+      if (err || resp.status !== 200) return resolve(null);
+      try {
+        let j = JSON.parse(body);
+        resolve({
+          country_code: j.country_code,
+          items_count: j.available_content_count
+        });
+      } catch {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // ================ Amazon Prime Video ================
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    const info = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({
-          url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
-          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-        }, (error, response, data) => {
-          if (error || response.status !== 200) return resolve(null);
-          try {
-            resolve(JSON.parse(data));
-          } catch {
-            resolve(null);
-          }
-        });
-      })
-    ]);
-
-    if (info && info.countryCode) {
-      res += `已解锁，区域: ${info.countryCode.toUpperCase()}`;
+    let home = await Promise.race([amazonHome(), timeout(8000)]);
+    let api = await Promise.race([amazonApi(), timeout(8000)]);
+    if (home && home.available && api && api.countryCode) {
+      res += `已解锁，区域: ${api.countryCode.toUpperCase()}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -415,29 +426,43 @@ async function check_amazon() {
   return res;
 }
 
+function amazonHome() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://www.primevideo.com/region-announcement',
+      headers: REQUEST_HEADERS
+    }, (err, resp, body) => {
+      if (err || resp.status !== 200) return resolve(null);
+      resolve({ available: !body.includes('not available in your country') });
+    });
+  });
+}
+
+function amazonApi() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
+      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+    }, (err, resp, data) => {
+      if (err || resp.status !== 200) return resolve(null);
+      try {
+        let j = JSON.parse(data);
+        resolve({ countryCode: j.countryCode });
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
 // ================ HBO Max ================
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    const info = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({
-          url: 'https://www.hbomax.com/api/v2/geo',
-          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-        }, (error, response, data) => {
-          if (error || response.status !== 200) return resolve(null);
-          try {
-            resolve(JSON.parse(data));
-          } catch {
-            resolve(null);
-          }
-        });
-      })
-    ]);
-
-    if (info && info.country) {
-      res += `已解锁，区域: ${info.country.toUpperCase()}`;
+    let home = await Promise.race([hbomaxHome(), timeout(8000)]);
+    let api = await Promise.race([hbomaxApi(), timeout(8000)]);
+    if (home && home.available && api && api.country) {
+      res += `已解锁，区域: ${api.country.toUpperCase()}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -445,6 +470,35 @@ async function check_hbomax() {
     res += '检测失败，请刷新面板';
   }
   return res;
+}
+
+function hbomaxHome() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://www.hbomax.com/',
+      headers: REQUEST_HEADERS
+    }, (err, resp, body) => {
+      if (err || resp.status !== 200) return resolve(null);
+      resolve({ available: !body.includes('not available in your region') });
+    });
+  });
+}
+
+function hbomaxApi() {
+  return new Promise((resolve) => {
+    $httpClient.get({
+      url: 'https://www.hbomax.com/api/v2/geo',
+      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+    }, (err, resp, data) => {
+      if (err || resp.status !== 200) return resolve(null);
+      try {
+        let j = JSON.parse(data);
+        resolve({ country: j.country });
+      } catch {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // ================ 通用函数 ================
