@@ -16,7 +16,6 @@ const STATUS_ERROR = -2;
 
 // ================ 网络检测 ================
 async function check_network_status() {
-  // 断开连接前先测试网络
   return new Promise((resolve, reject) => {
     $httpClient.get(
       { url: 'https://www.google.com/generate_204', timeout: 5000 },
@@ -60,7 +59,6 @@ function getFormattedTime() {
     return;
   }
 
-  // —— 并行检测平台 ——  
   const checks = [
     check_netflix(),
     check_disneyplus(),
@@ -88,7 +86,6 @@ function getFormattedTime() {
       '部分检测失败，请查看结果';
   }
 
-  // 输出面板结果并立即断开连接
   $done(panel_result);
   $httpClient.disconnect();
 })();
@@ -349,23 +346,40 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    const response = JSON.parse(
-      await new Promise((resolve, reject) => {
-        $httpClient.get(
-          {
-            url: 'https://www.hulu.com/geoip',
-            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-          },
-          (error, _, data) => {
-            if (error) return reject();
-            resolve(data);
+    const { status, region } = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+
+        $httpClient.get({
+          url: 'https://auth.hulu.com/v1/device',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, body) => {
+          if (error || response.status !== 200) return resolve({ status: STATUS_ERROR });
+          
+          try {
+            const data = JSON.parse(body);
+            const countryCode = data.country_code;
+
+            $httpClient.head({
+              url: 'https://content.hulu.com/home',
+              headers: { ...REQUEST_HEADERS }
+            }, (error, response) => {
+              if (error || response.status !== 200) {
+                return resolve({ status: STATUS_NOT_AVAILABLE });
+              }
+              resolve({ status: STATUS_AVAILABLE, region: countryCode });
+            });
+          } catch {
+            resolve({ status: STATUS_ERROR });
           }
-        );
+        });
       })
-    );
-    const region = response.country_code;
-    if (response.city) {
+    ]);
+    
+    if (status === STATUS_AVAILABLE) {
       res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else if (status === STATUS_NOT_AVAILABLE) {
+      res += '当前区域不可用';
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -379,23 +393,39 @@ async function check_hulu() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    const data = JSON.parse(
-      await new Promise((resolve, reject) => {
-        $httpClient.get(
-          {
-            url: 'https://payment-api.amazon.com/registry/geo',
-            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-          },
-          (error, _, body) => {
-            if (error) return reject();
-            resolve(body);
+    const { status, region } = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+
+        $httpClient.get({
+          url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, data) => {
+          if (error || response.status !== 200) return resolve({ status: STATUS_ERROR });
+          
+          try {
+            const info = JSON.parse(data);
+
+            $httpClient.head({
+              url: `https://www.primevideo.com/dp/${info.featuredMovie}`,
+              headers: { ...REQUEST_HEADERS }
+            }, (error, response) => {
+              if (error || response.status !== 200) {
+                return resolve({ status: STATUS_NOT_AVAILABLE });
+              }
+              resolve({ status: STATUS_AVAILABLE, region: info.countryCode });
+            });
+          } catch {
+            resolve({ status: STATUS_ERROR });
           }
-        );
+        });
       })
-    );
-    const region = data.countryCode;
-    if (data.isPrimeSupported) {
+    ]);
+    
+    if (status === STATUS_AVAILABLE) {
       res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else if (status === STATUS_NOT_AVAILABLE) {
+      res += '当前区域不可用';
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -409,23 +439,49 @@ async function check_amazon() {
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    const data = JSON.parse(
-      await new Promise((resolve, reject) => {
-        $httpClient.get(
-          {
-            url: 'https://www.hbo.com/geo',
-            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-          },
-          (error, _, body) => {
-            if (error) return reject();
-            resolve(body);
+    const { status, region } = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+
+        $httpClient.get({
+          url: 'https://comet.api.hbo.com/sessions',
+          headers: { 
+            ...REQUEST_HEADERS,
+            'x-hbo-device-claims': '{"drm":"widevine"}',
+            'x-hbo-client-version': '2021.10.27',
+            'x-hbo-device-id': 'chrome-114',
+            'x-hbo-device-name': 'Chrome'
           }
-        );
+        }, (error, response, data) => {
+          if (error || response.status !== 200) return resolve({ status: STATUS_ERROR });
+          
+          try {
+            const session = JSON.parse(data);
+            const countryCode = session.location.countryCode;
+
+            $httpClient.get({
+              url: 'https://comet.api.hbo.com/sessions/me',
+              headers: { 
+                ...REQUEST_HEADERS,
+                Authorization: `Bearer ${session.token}`
+              }
+            }, (error, response) => {
+              if (error || response.status !== 200) {
+                return resolve({ status: STATUS_NOT_AVAILABLE });
+              }
+              resolve({ status: STATUS_AVAILABLE, region: countryCode });
+            });
+          } catch {
+            resolve({ status: STATUS_ERROR });
+          }
+        });
       })
-    );
-    const region = data.country;
-    if (data.hboMaxSupported) {
+    ]);
+    
+    if (status === STATUS_AVAILABLE) {
       res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else if (status === STATUS_NOT_AVAILABLE) {
+      res += '当前区域不可用';
     } else {
       res += '检测失败，请刷新面板';
     }
