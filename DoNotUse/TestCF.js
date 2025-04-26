@@ -16,6 +16,7 @@ const STATUS_ERROR = -2;
 
 // ================ 网络检测 ================
 async function check_network_status() {
+  // 断开连接前先测试网络
   return new Promise((resolve, reject) => {
     $httpClient.get(
       { url: 'https://www.google.com/generate_204', timeout: 5000 },
@@ -51,15 +52,15 @@ function getFormattedTime() {
     await check_network_status();
   } catch (e) {
     panel_result.content =
-      `最后刷新时间: ${getFormattedTime()}\n` +
-      '────────────────\n' +
+      `最后刷新时间: ${getFormattedTime()}` +
+      '\n────────────────\n' +
       '网络不可用，请检查连接';
     $done(panel_result);
     $httpClient.disconnect();
     return;
   }
 
-  // —— 并行检测 Netflix / Disney+ / ChatGPT / YouTube / TikTok / Hulu / Amazon / HBO Max —— 
+  // —— 并行检测平台 ——  
   const checks = [
     check_netflix(),
     check_disneyplus(),
@@ -82,8 +83,8 @@ function getFormattedTime() {
   } catch (e) {
     console.log('检测异常:', e);
     panel_result.content =
-      `最后刷新时间: ${getFormattedTime()}\n` +
-      '────────────────\n' +
+      `最后刷新时间: ${getFormattedTime()}` +
+      '\n────────────────\n' +
       '部分检测失败，请查看结果';
   }
 
@@ -154,7 +155,7 @@ async function check_disneyplus() {
 
 async function testDisneyPlus() {
   try {
-    let { region, cnbl } = await Promise.race([testHomePage(), timeout(7000)]);
+    let { region } = await Promise.race([testHomePage(), timeout(7000)]);
     let info = await Promise.race([getLocationInfo(), timeout(7000)]);
     let countryCode = info.countryCode ?? region;
     let inSupportedLocation = info.inSupportedLocation;
@@ -294,11 +295,7 @@ async function check_youtube_premium() {
           }
           let re = /"countryCode":"(.*?)"/gm;
           let m = re.exec(data);
-          let region = m
-            ? m[1]
-            : data.includes('www.google.cn')
-            ? 'CN'
-            : 'US';
+          let region = m ? m[1] : data.includes('www.google.cn') ? 'CN' : 'US';
           resolve(region);
         }
       );
@@ -352,36 +349,31 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    const response = await new Promise((resolve) => {
-      $httpClient.get(
-        {
+    const data = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+        $httpClient.get({
           url: 'https://discover.hulu.com/content/v4/hubs/home',
-          headers: {
-            ...REQUEST_HEADERS,
-            'Accept': 'application/json'
-          },
-          timeout: 8000
-        },
-        (error, response, body) => {
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, body) => {
           if (error || response.status !== 200) return resolve(null);
-          
           try {
-            const data = JSON.parse(body);
-            const region = data.country_code || 'US';
-            const hasContent = data.components?.some(comp => 
-              comp.items?.length > 0
-            );
-            
-            resolve(hasContent ? region : null);
-          } catch (e) {
+            resolve(JSON.parse(body));
+          } catch {
             resolve(null);
           }
-        }
-      );
-    });
+        });
+      })
+    ]);
 
-    if (response) {
-      res += `已解锁，区域: ${response.toUpperCase()}`;
+    if (data && data.country_code && Array.isArray(data.components)) {
+      const region = data.country_code;
+      const hasPlayable = data.components.some(hub => hub.items && hub.items.length > 0);
+      if (hasPlayable) {
+        res += `已解锁，区域: ${region.toUpperCase()}`;
+      } else {
+        res += '检测失败，请刷新面板';
+      }
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -395,31 +387,25 @@ async function check_hulu() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    const region = await new Promise((resolve) => {
-      $httpClient.get(
-        {
+    const info = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+        $httpClient.get({
           url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
-          headers: {
-            ...REQUEST_HEADERS,
-            'Accept': 'application/json'
-          },
-          timeout: 8000
-        },
-        (error, response, data) => {
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, data) => {
           if (error || response.status !== 200) return resolve(null);
-          
           try {
-            const jsonData = JSON.parse(data);
-            resolve(jsonData.countryCode);
-          } catch (e) {
+            resolve(JSON.parse(data));
+          } catch {
             resolve(null);
           }
-        }
-      );
-    });
+        });
+      })
+    ]);
 
-    if (region) {
-      res += `已解锁，区域: ${region.toUpperCase()}`;
+    if (info && info.countryCode) {
+      res += `已解锁，区域: ${info.countryCode.toUpperCase()}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -433,31 +419,25 @@ async function check_amazon() {
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    const response = await new Promise((resolve) => {
-      $httpClient.get(
-        {
+    const info = await Promise.race([
+      timeout(8000),
+      new Promise((resolve) => {
+        $httpClient.get({
           url: 'https://www.hbomax.com/api/v2/geo',
-          headers: {
-            ...REQUEST_HEADERS,
-            'Accept': 'application/json'
-          },
-          timeout: 8000
-        },
-        (error, response, data) => {
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, data) => {
           if (error || response.status !== 200) return resolve(null);
-          
           try {
-            const geoData = JSON.parse(data);
-            resolve(geoData.country);
-          } catch (e) {
+            resolve(JSON.parse(data));
+          } catch {
             resolve(null);
           }
-        }
-      );
-    });
+        });
+      })
+    ]);
 
-    if (response) {
-      res += `已解锁，区域: ${response.toUpperCase()}`;
+    if (info && info.country) {
+      res += `已解锁，区域: ${info.country.toUpperCase()}`;
     } else {
       res += '检测失败，请刷新面板';
     }
