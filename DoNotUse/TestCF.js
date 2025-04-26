@@ -352,17 +352,22 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    const data = await new Promise((resolve) => {
+    const response = await new Promise((resolve) => {
       $httpClient.get(
-        { url: 'https://www.hulu.com/', headers: REQUEST_HEADERS },
+        {
+          url: 'https://play.hulu.com/v3/start?series_id=cc76ac90-2e20-11ed-9f6e-41dbeb6f6c94&preferred_variant=720&language=en',
+          headers: REQUEST_HEADERS,
+        },
         (error, response, body) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          resolve({ available: true });
+          if (body.includes('"notAvailableInLocation":true')) return resolve({ available: false });
+          resolve({ available: true, region: response.headers['x-hulu-geo-ip-country-code'] || 'US' });
         }
       );
     });
-    if (data.available) {
-      res += '已解锁';
+
+    if (response.available) {
+      res += `已解锁，区域: ${response.region}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -376,20 +381,26 @@ async function check_hulu() {
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    const data = await new Promise((resolve) => {
+    const response = await new Promise((resolve) => {
       $httpClient.get(
-        { url: 'https://www.hbomax.com/', headers: REQUEST_HEADERS },
-        (error, response, body) => {
+        {
+          url: 'https://api.hbomax.com/v1/catalog/title/urn:hbo:entity:GX5n2dg3xWJuAuwEAABRM',
+          headers: {
+            ...REQUEST_HEADERS,
+            'Accept-Language': 'en',
+          },
+        },
+        (error, response, data) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          if (body.includes('HBO Max is not available in your region')) {
-            return resolve({ available: false });
-          }
-          resolve({ available: true });
+          if (data.includes('Not available in your region')) return resolve({ available: false });
+          const matched = data.match(/"countryCode":"([A-Z]{2})"/);
+          resolve({ available: true, region: matched ? matched[1] : 'US' });
         }
       );
     });
-    if (data.available) {
-      res += '已解锁';
+
+    if (response.available) {
+      res += `已解锁，区域: ${response.region}`;
     } else {
       res += '检测失败，请刷新面板';
     }
@@ -403,20 +414,23 @@ async function check_hbomax() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    const data = await new Promise((resolve) => {
+    const response = await new Promise((resolve) => {
       $httpClient.get(
-        { url: 'https://www.primevideo.com/', headers: REQUEST_HEADERS },
-        (error, response, body) => {
+        {
+          url: 'https://www.primevideo.com/detail/0T1ZQ0L5PYO2WZSQ9A6ENZ53JH',
+          headers: REQUEST_HEADERS,
+        },
+        (error, response, data) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          if (body.includes('Not Available in Your Location')) {
-            return resolve({ available: false });
-          }
-          resolve({ available: true });
+          if (data.includes('not available in your location')) return resolve({ available: false });
+          const match = data.match(/"locale":"([a-z]{2}-[A-Z]{2})"/);
+          resolve({ available: true, region: match ? match[1].split('-')[1] : 'US' });
         }
       );
     });
-    if (data.available) {
-      res += '已解锁';
+
+    if (response.available) {
+      res += `已解锁，区域: ${response.region}`;
     } else {
       res += '检测失败，请刷新面板';
     }
