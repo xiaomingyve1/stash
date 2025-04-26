@@ -1,5 +1,5 @@
 name: 增强流媒体检测
-desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok/Hulu/HBO Max/Amazon Prime Video 。 启用“切换策略组时打断连接”防止节点切换缓存。
+desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok/Hulu/Amazon Prime Video/HBO Max 。 启用“切换策略组时打断连接”防止节点切换缓存。
 author: xiaomingyve1
 update-url: https://github.com/xiaomingyve1/stash
 enable: true
