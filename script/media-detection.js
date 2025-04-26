@@ -51,40 +51,42 @@ function getFormattedTime() {
     await check_network_status();
   } catch (e) {
     panel_result.content =
-      `最后刷新时间: ${getFormattedTime()}\n` +
-      '────────────────\n' +
+      `最后刷新时间: ${getFormattedTime()}` +
+      '\n────────────────\n' +
       '网络不可用，请检查连接';
     $done(panel_result);
     $httpClient.disconnect();
     return;
   }
 
-  // —— 并行检测 Netflix / Disney+ / ChatGPT / YouTube / TikTok —— 
-  await Promise.all([
+  // —— 并行检测平台 ——  
+  const checks = [
     check_netflix(),
     check_disneyplus(),
     check_chatgpt(),
     check_youtube_premium(),
     check_tiktok()
-  ])
-    .then((result) => {
-      const timeHeader = [
-        `最后刷新时间: ${getFormattedTime()}`,
-        '────────────────'
-      ];
-      panel_result.content = [...timeHeader, ...result].join('\n');
-    })
-    .catch((error) => {
-      console.log('全局检测异常:', error);
-      panel_result.content =
-        `最后刷新时间: ${getFormattedTime()}\n` +
-        '────────────────\n' +
-        '所有检测均失败，请检查网络';
-    })
-    .finally(() => {
-      $done(panel_result);
-      $httpClient.disconnect(); // 检测完毕后断开连接
-    });
+  ];
+
+  let results;
+  try {
+    results = await Promise.all(checks);
+    const timeHeader = [
+      `最后刷新时间: ${getFormattedTime()}`,
+      '────────────────'
+    ];
+    panel_result.content = [...timeHeader, ...results].join('\n');
+  } catch (e) {
+    console.log('检测异常:', e);
+    panel_result.content =
+      `最后刷新时间: ${getFormattedTime()}` +
+      '\n────────────────\n' +
+      '部分检测失败，请查看结果';
+  }
+
+  // 输出面板结果并立即断开连接
+  $done(panel_result);
+  $httpClient.disconnect();
 })();
 
 // ================ Netflix ================
@@ -149,7 +151,7 @@ async function check_disneyplus() {
 
 async function testDisneyPlus() {
   try {
-    let { region, cnbl } = await Promise.race([testHomePage(), timeout(7000)]);
+    let { region } = await Promise.race([testHomePage(), timeout(7000)]);
     let info = await Promise.race([getLocationInfo(), timeout(7000)]);
     let countryCode = info.countryCode ?? region;
     let inSupportedLocation = info.inSupportedLocation;
@@ -289,11 +291,7 @@ async function check_youtube_premium() {
           }
           let re = /"countryCode":"(.*?)"/gm;
           let m = re.exec(data);
-          let region = m
-            ? m[1]
-            : data.includes('www.google.cn')
-            ? 'CN'
-            : 'US';
+          let region = m ? m[1] : data.includes('www.google.cn') ? 'CN' : 'US';
           resolve(region);
         }
       );
