@@ -355,22 +355,23 @@ async function check_hulu() {
     const response = await new Promise((resolve) => {
       $httpClient.get(
         {
-          url: 'https://www.hulu.com/watch/264058', // example valid playable ID
-          headers: REQUEST_HEADERS,
-          followRedirect: false,
+          url: 'https://www.hulu.com/watch/0L6P+CwyyyY',
+          headers: {
+            ...REQUEST_HEADERS,
+            'Accept': 'application/json'
+          },
           timeout: 8000
         },
         (error, response, body) => {
-          if (error) return resolve({ available: false });
-          if (response.status === 302 && response.headers.location.includes('signin')) {
-            const geo = response.headers['x-hulu-geo-ip-country-code'] || 'US';
-            return resolve({ available: true, region: geo });
+          if (error || response.status !== 200) return resolve({ available: false });
+          const geoCode = response.headers['x-hulu-geo-ip-country-code'];
+          const hasPlayback = body.includes('"playback":{') || body.includes('playbackConfig');
+          
+          if (geoCode && hasPlayback) {
+            resolve({ available: true, region: geoCode });
+          } else {
+            resolve({ available: false });
           }
-          if (response.status === 200 && body.includes('playbackConfig')) {
-            const geo = response.headers['x-hulu-geo-ip-country-code'] || 'US';
-            return resolve({ available: true, region: geo });
-          }
-          resolve({ available: false });
         }
       );
     });
@@ -380,7 +381,8 @@ async function check_hulu() {
     } else {
       res += '检测失败，请刷新面板';
     }
-  } catch {
+  } catch (e) {
+    console.log('Hulu检测错误:', e);
     res += '检测失败，请刷新面板';
   }
   return res;
@@ -391,21 +393,25 @@ async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
     const response = await new Promise((resolve) => {
-      $httpClient.post(
+      $httpClient.get(
         {
-          url: 'https://api.hbonow.com/v2/account',
+          url: 'https://www.hbomax.com/identity',
           headers: {
             ...REQUEST_HEADERS,
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ query: '{ featureFlags }' }),
           timeout: 8000
         },
         (error, response, data) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          const match = data.match(/"country":"([A-Z]{2})"/);
-          const region = match ? match[1] : 'US';
-          resolve({ available: true, region });
+          
+          try {
+            const jsonData = JSON.parse(data);
+            const region = jsonData?.geo?.country || 'US';
+            resolve({ available: true, region });
+          } catch (e) {
+            resolve({ available: false });
+          }
         }
       );
     });
@@ -415,7 +421,8 @@ async function check_hbomax() {
     } else {
       res += '检测失败，请刷新面板';
     }
-  } catch {
+  } catch (e) {
+    console.log('HBO检测错误:', e);
     res += '检测失败，请刷新面板';
   }
   return res;
@@ -427,36 +434,26 @@ async function check_amazon() {
   try {
     const session = await new Promise((resolve) => {
       $httpClient.get(
-        { url: 'https://www.primevideo.com/', headers: REQUEST_HEADERS, timeout: 5000 },
+        { 
+          url: 'https://www.primevideo.com/regionPicker/ref=atv_auth_region', 
+          headers: REQUEST_HEADERS, 
+          timeout: 5000 
+        },
         (e, r, d) => {
           if (e || r.status !== 200) return resolve(null);
-          resolve(r.headers['set-cookie']);
-        }
-      );
-    });
-    if (!session) throw new Error();
-    const response = await new Promise((resolve) => {
-      $httpClient.get(
-        {
-          url: 'https://www.primevideo.com/detail/0T1ZQ0L5PYO2WZSQ9A6ENZ53JH/playback',
-          headers: { ...REQUEST_HEADERS, Cookie: session },
-          timeout: 8000
-        },
-        (error, response, data) => {
-          if (error || response.status !== 200) return resolve({ available: false });
-          const match = data.match(/"countryOfOriginCode":"([A-Z]{2})"/);
-          const region = match ? match[1] : 'US';
-          resolve({ available: true, region });
+          const match = d.match(/"currentRegion":"([A-Z]{2})"/);
+          resolve(match ? match[1] : null);
         }
       );
     });
 
-    if (response.available) {
-      res += `已解锁，区域: ${response.region}`;
+    if (session) {
+      res += `已解锁，区域: ${session}`;
     } else {
       res += '检测失败，请刷新面板';
     }
-  } catch {
+  } catch (e) {
+    console.log('Amazon检测错误:', e);
     res += '检测失败，请刷新面板';
   }
   return res;
