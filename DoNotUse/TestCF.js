@@ -16,7 +16,6 @@ const STATUS_ERROR = -2;
 
 // ================ 网络检测 ================
 async function check_network_status() {
-  // 断开连接前先测试网络
   return new Promise((resolve, reject) => {
     $httpClient.get(
       { url: 'https://www.google.com/generate_204', timeout: 5000 },
@@ -60,7 +59,6 @@ function getFormattedTime() {
     return;
   }
 
-  // —— 并行检测平台 ——  
   const checks = [
     check_netflix(),
     check_disneyplus(),
@@ -87,13 +85,12 @@ function getFormattedTime() {
       '\n────────────────\n' +
       '部分检测失败，请查看结果';
   }
-
   // 输出面板结果并立即断开连接
   $done(panel_result);
   $httpClient.disconnect();
 })();
 
-// ================ Netflix ================
+// ================ Netflix ===============
 async function check_netflix() {
   function inner_check(filmId) {
     return new Promise((resolve, reject) => {
@@ -135,7 +132,7 @@ async function check_netflix() {
   return res;
 }
 
-// ================ Disney+ ================
+// ================ Disney+ ===============
 async function check_disneyplus() {
   let res = 'Disney+: ';
   try {
@@ -244,7 +241,7 @@ function getLocationInfo() {
   });
 }
 
-// ================ ChatGPT ================
+// ================ ChatGPT ===============
 async function check_chatgpt() {
   let result = 'ChatGPT: ';
   try {
@@ -279,7 +276,7 @@ async function check_chatgpt() {
   return result;
 }
 
-// ================ YouTube Premium ================
+// ================ YouTube Premium ===============
 async function check_youtube_premium() {
   function inner_check() {
     return new Promise((resolve, reject) => {
@@ -314,7 +311,7 @@ async function check_youtube_premium() {
   return res;
 }
 
-// ================ TikTok ================
+// ================ TikTok ===============
 async function check_tiktok() {
   let res = 'TikTok: ';
   try {
@@ -349,159 +346,159 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    // 1)
-    let home = await Promise.race([huluHome(), timeout(8000)]);
-    // 2)
-    let api = await Promise.race([huluApi(), timeout(8000)]);
-    // 判断
-    if (
-      home &&
-      home.available === true &&
-      api &&
-      api.country_code &&
-      api.items_count > 0
-    ) {
-      res += `已解锁，区域: ${api.country_code.toUpperCase()}`;
-    } else {
-      res += '检测失败，请刷新面板';
+    const homepage = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://www.hulu.com/',
+          headers: REQUEST_HEADERS
+        }, (error, response) => {
+          resolve({ error, status: response?.status });
+        });
+      })
+    ]);
+    
+    if (homepage.error || homepage.status !== 200) {
+      throw new Error('Homepage unavailable');
     }
-  } catch {
+
+    const apiData = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://discover.hulu.com/content/v4/hubs/home',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, body) => {
+          if (error || response.status !== 200) return resolve(null);
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            resolve(null);
+          }
+        });
+      })
+    ]);
+    if (apiData?.country_code && apiData.components?.length > 0) {
+      const region = apiData.country_code.toUpperCase();
+      const hasPlayable = apiData.components.some(hub => 
+        hub.items?.some(item => item.type === 'episode' || item.type === 'movie')
+      );
+      res += hasPlayable ? `已解锁，区域: ${region}` : '仅限浏览不可播放';
+    } else {
+      throw new Error('API validation failed');
+    }
+  } catch (e) {
     res += '检测失败，请刷新面板';
   }
   return res;
-}
-
-function huluHome() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://discover.hulu.com/content/v4/hubs/home',
-      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-    }, (err, resp, body) => {
-      if (err || resp.status !== 200) return resolve(null);
-      try {
-        let d = JSON.parse(body);
-        let ok = Array.isArray(d.components) && d.components.some(c => c.items && c.items.length>0);
-        resolve({ available: ok });
-      } catch {
-        resolve(null);
-      }
-    });
-  });
-}
-
-function huluApi() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://api.hulu.com/v1/account/region',
-      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-    }, (err, resp, body) => {
-      if (err || resp.status !== 200) return resolve(null);
-      try {
-        let j = JSON.parse(body);
-        resolve({
-          country_code: j.country_code,
-          items_count: j.available_content_count
-        });
-      } catch {
-        resolve(null);
-      }
-    });
-  });
 }
 
 // ================ Amazon Prime Video ================
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    let home = await Promise.race([amazonHome(), timeout(8000)]);
-    let api = await Promise.race([amazonApi(), timeout(8000)]);
-    if (home && home.available && api && api.countryCode) {
-      res += `已解锁，区域: ${api.countryCode.toUpperCase()}`;
-    } else {
-      res += '检测失败，请刷新面板';
+    const regionInfo = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, data) => {
+          if (error || response.status !== 200) return resolve(null);
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve(null);
+          }
+        });
+      })
+    ]);
+
+    if (!regionInfo?.countryCode) {
+      throw new Error('Region API failed');
     }
-  } catch {
+
+    const playbackCheck = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: `https://www.primevideo.com/api/video/v2/web/atv/titles/amzn1.dv.gti.12345678-90ab-cdef-ghij-klmnopqrstuv/playback`,
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response) => {
+          resolve({
+            valid: response?.status === 200,
+            region: regionInfo.countryCode
+          });
+        });
+      })
+    ]);
+
+    res += playbackCheck.valid 
+      ? `已解锁，区域: ${playbackCheck.region.toUpperCase()}`
+      : '检测失败，请刷新面板';
+
+  } catch (e) {
     res += '检测失败，请刷新面板';
   }
   return res;
-}
-
-function amazonHome() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://www.primevideo.com/region-announcement',
-      headers: REQUEST_HEADERS
-    }, (err, resp, body) => {
-      if (err || resp.status !== 200) return resolve(null);
-      resolve({ available: !body.includes('not available in your country') });
-    });
-  });
-}
-
-function amazonApi() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
-      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-    }, (err, resp, data) => {
-      if (err || resp.status !== 200) return resolve(null);
-      try {
-        let j = JSON.parse(data);
-        resolve({ countryCode: j.countryCode });
-      } catch {
-        resolve(null);
-      }
-    });
-  });
 }
 
 // ================ HBO Max ================
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    let home = await Promise.race([hbomaxHome(), timeout(8000)]);
-    let api = await Promise.race([hbomaxApi(), timeout(8000)]);
-    if (home && home.available && api && api.country) {
-      res += `已解锁，区域: ${api.country.toUpperCase()}`;
-    } else {
-      res += '检测失败，请刷新面板';
+    const geoInfo = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://www.hbomax.com/api/v2/geo',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+        }, (error, response, data) => {
+          if (error || response.status !== 200) return resolve(null);
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve(null);
+          }
+        });
+      })
+    ]);
+
+    if (!geoInfo?.country) {
+      throw new Error('Geo API failed');
     }
-  } catch {
+
+    const contentCheck = await Promise.race([
+      timeout(5000),
+      new Promise((resolve) => {
+        $httpClient.get({
+          url: 'https://comet.api.hbo.com/content',
+          headers: {
+            ...REQUEST_HEADERS,
+            'x-hbo-client-version': '2021.12.01',
+            'x-hbo-device-name': 'chrome',
+            'x-hbo-country-code': geoInfo.country
+          }
+        }, (error, response) => {
+          resolve({
+            valid: response?.status === 200,
+            region: geoInfo.country
+          });
+        });
+      })
+    ]);
+
+    res += contentCheck.valid 
+      ? `已解锁，区域: ${contentCheck.region.toUpperCase()}`
+      : '检测失败，请刷新面板';
+
+  } catch (e) {
     res += '检测失败，请刷新面板';
   }
   return res;
 }
 
-function hbomaxHome() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://www.hbomax.com/',
-      headers: REQUEST_HEADERS
-    }, (err, resp, body) => {
-      if (err || resp.status !== 200) return resolve(null);
-      resolve({ available: !body.includes('not available in your region') });
-    });
-  });
-}
-
-function hbomaxApi() {
-  return new Promise((resolve) => {
-    $httpClient.get({
-      url: 'https://www.hbomax.com/api/v2/geo',
-      headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
-    }, (err, resp, data) => {
-      if (err || resp.status !== 200) return resolve(null);
-      try {
-        let j = JSON.parse(data);
-        resolve({ country: j.country });
-      } catch {
-        resolve(null);
-      }
-    });
-  });
-}
-
-// ================ 通用函数 ================
+// ================ 通用函数 ===============
 function timeout(delay = 5000) {
   return new Promise((_, reject) =>
     setTimeout(() => reject('Timeout'), delay)
