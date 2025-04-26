@@ -16,6 +16,7 @@ const STATUS_ERROR = -2;
 
 // ================ 网络检测 ================
 async function check_network_status() {
+  // 断开连接前先测试网络
   return new Promise((resolve, reject) => {
     $httpClient.get(
       { url: 'https://www.google.com/generate_204', timeout: 5000 },
@@ -59,7 +60,7 @@ function getFormattedTime() {
     return;
   }
 
-  // 并行检测平台
+  // —— 并行检测平台 ——  
   const checks = [
     check_netflix(),
     check_disneyplus(),
@@ -87,7 +88,7 @@ function getFormattedTime() {
       '部分检测失败，请查看结果';
   }
 
-    // 输出面板结果并立即断开连接
+  // 输出面板结果并立即断开连接
   $done(panel_result);
   $httpClient.disconnect();
 })();
@@ -348,35 +349,28 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-
-    const homepage = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: 'https://www.hulu.com/', headers: REQUEST_HEADERS }, (error, response, data) => {
-          if (error || response.status !== 200 || data.includes('Sorry, Hulu is not available')) return resolve(null);
-          resolve(data);
-        });
+    const response = JSON.parse(
+      await new Promise((resolve, reject) => {
+        $httpClient.get(
+          {
+            url: 'https://www.hulu.com/geoip',
+            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+          },
+          (error, _, data) => {
+            if (error) return reject();
+            resolve(data);
+          }
+        );
       })
-    ]);
-    if (!homepage) throw 'Not Available';
-
-    const data = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: 'https://discover.hulu.com/content/v4/hubs/home', headers: { ...REQUEST_HEADERS, Accept: 'application/json' } }, (error, response, body) => {
-          if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(body)); } catch { resolve(null); }
-        });
-      })
-    ]);
-    if (!data || !data.country_code) throw 'Not Available';
-    const region = data.country_code;
-    const playable = data.components.some(hub => hub.items && hub.items.some(item=> item.playbackUrl));
-    if (!playable) throw 'NoPlayable';
-    res += `已解锁，区域: ${region.toUpperCase()}`;
-  } catch (err) {
-    if (err === 'Not Available' || err === 'NoPlayable') res += '检测失败，请刷新面板';
-    else res += '检测失败，请刷新面板';
+    );
+    const region = response.country_code;
+    if (response.city) {
+      res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
+    res += '检测失败，请刷新面板';
   }
   return res;
 }
@@ -385,30 +379,27 @@ async function check_hulu() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-
-    const info = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current', headers: { ...REQUEST_HEADERS, Accept: 'application/json' } }, (error, response, data) => {
-          if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(data)); } catch { resolve(null); }
-        });
+    const data = JSON.parse(
+      await new Promise((resolve, reject) => {
+        $httpClient.get(
+          {
+            url: 'https://payment-api.amazon.com/registry/geo',
+            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+          },
+          (error, _, body) => {
+            if (error) return reject();
+            resolve(body);
+          }
+        );
       })
-    ]);
-    if (!info || !info.countryCode) throw 'Not Available';
-
-    const sample = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: `https://www.primevideo.com/detail/0H47SFT0M27KX3G2TRX99Z0E6Z/ref=atv_dp_pd`, headers: REQUEST_HEADERS }, (error, response) => {
-          if (error || response.status !== 200) return resolve(false);
-          resolve(true);
-        });
-      })
-    ]);
-    if (!sample) throw 'NoPlayable';
-    res += `已解锁，区域: ${info.countryCode.toUpperCase()}`;
-  } catch (err) {
+    );
+    const region = data.countryCode;
+    if (data.isPrimeSupported) {
+      res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
     res += '检测失败，请刷新面板';
   }
   return res;
@@ -418,31 +409,27 @@ async function check_amazon() {
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-
-    const info = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: 'https://www.hbomax.com/api/v2/geo', headers: { ...REQUEST_HEADERS, Accept: 'application/json' } }, (error, response, data) => {
-          if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(data)); } catch { resolve(null); }
-        });
+    const data = JSON.parse(
+      await new Promise((resolve, reject) => {
+        $httpClient.get(
+          {
+            url: 'https://www.hbo.com/geo',
+            headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
+          },
+          (error, _, body) => {
+            if (error) return reject();
+            resolve(body);
+          }
+        );
       })
-    ]);
-    if (!info || !info.country) throw 'Not Available';
-    const region = info.country;
-
-    const playable = await Promise.race([
-      timeout(8000),
-      new Promise((resolve) => {
-        $httpClient.get({ url: 'https://www.hbomax.com/feature/urn:hbo:feature:GXdu9ww7H4AICfwEAAABa/header', headers: REQUEST_HEADERS }, (error, response) => {
-          if (error || response.status !== 200) return resolve(false);
-          resolve(true);
-        });
-      })
-    ]);
-    if (!playable) throw 'NoPlayable';
-    res += `已解锁，区域: ${region.toUpperCase()}`;
-  } catch (err) {
+    );
+    const region = data.country;
+    if (data.hboMaxSupported) {
+      res += `已解锁，区域: ${region.toUpperCase()}`;
+    } else {
+      res += '检测失败，请刷新面板';
+    }
+  } catch {
     res += '检测失败，请刷新面板';
   }
   return res;
