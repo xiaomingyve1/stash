@@ -355,13 +355,22 @@ async function check_hulu() {
     const response = await new Promise((resolve) => {
       $httpClient.get(
         {
-          url: 'https://play.hulu.com/v3/start?series_id=cc76ac90-2e20-11ed-9f6e-41dbeb6f6c94&preferred_variant=720&language=en',
+          url: 'https://www.hulu.com/watch/264058', // example valid playable ID
           headers: REQUEST_HEADERS,
+          followRedirect: false,
+          timeout: 8000
         },
         (error, response, body) => {
-          if (error || response.status !== 200) return resolve({ available: false });
-          if (body.includes('"notAvailableInLocation":true')) return resolve({ available: false });
-          resolve({ available: true, region: response.headers['x-hulu-geo-ip-country-code'] || 'US' });
+          if (error) return resolve({ available: false });
+          if (response.status === 302 && response.headers.location.includes('signin')) {
+            const geo = response.headers['x-hulu-geo-ip-country-code'] || 'US';
+            return resolve({ available: true, region: geo });
+          }
+          if (response.status === 200 && body.includes('playbackConfig')) {
+            const geo = response.headers['x-hulu-geo-ip-country-code'] || 'US';
+            return resolve({ available: true, region: geo });
+          }
+          resolve({ available: false });
         }
       );
     });
@@ -382,19 +391,21 @@ async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
     const response = await new Promise((resolve) => {
-      $httpClient.get(
+      $httpClient.post(
         {
-          url: 'https://api.hbomax.com/v1/catalog/title/urn:hbo:entity:GX5n2dg3xWJuAuwEAABRM',
+          url: 'https://api.hbonow.com/v2/account',
           headers: {
             ...REQUEST_HEADERS,
-            'Accept-Language': 'en',
+            'Accept': 'application/json'
           },
+          body: JSON.stringify({ query: '{ featureFlags }' }),
+          timeout: 8000
         },
         (error, response, data) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          if (data.includes('Not available in your region')) return resolve({ available: false });
-          const matched = data.match(/"countryCode":"([A-Z]{2})"/);
-          resolve({ available: true, region: matched ? matched[1] : 'US' });
+          const match = data.match(/"country":"([A-Z]{2})"/);
+          const region = match ? match[1] : 'US';
+          resolve({ available: true, region });
         }
       );
     });
@@ -414,17 +425,28 @@ async function check_hbomax() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
+    const session = await new Promise((resolve) => {
+      $httpClient.get(
+        { url: 'https://www.primevideo.com/', headers: REQUEST_HEADERS, timeout: 5000 },
+        (e, r, d) => {
+          if (e || r.status !== 200) return resolve(null);
+          resolve(r.headers['set-cookie']);
+        }
+      );
+    });
+    if (!session) throw new Error();
     const response = await new Promise((resolve) => {
       $httpClient.get(
         {
-          url: 'https://www.primevideo.com/detail/0T1ZQ0L5PYO2WZSQ9A6ENZ53JH',
-          headers: REQUEST_HEADERS,
+          url: 'https://www.primevideo.com/detail/0T1ZQ0L5PYO2WZSQ9A6ENZ53JH/playback',
+          headers: { ...REQUEST_HEADERS, Cookie: session },
+          timeout: 8000
         },
         (error, response, data) => {
           if (error || response.status !== 200) return resolve({ available: false });
-          if (data.includes('not available in your location')) return resolve({ available: false });
-          const match = data.match(/"locale":"([a-z]{2}-[A-Z]{2})"/);
-          resolve({ available: true, region: match ? match[1].split('-')[1] : 'US' });
+          const match = data.match(/"countryOfOriginCode":"([A-Z]{2})"/);
+          const region = match ? match[1] : 'US';
+          resolve({ available: true, region });
         }
       );
     });
