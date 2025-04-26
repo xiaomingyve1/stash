@@ -16,6 +16,7 @@ const STATUS_ERROR = -2;
 
 // ================ 网络检测 ================
 async function check_network_status() {
+  // 断开连接前先测试网络
   return new Promise((resolve, reject) => {
     $httpClient.get(
       { url: 'https://www.google.com/generate_204', timeout: 5000 },
@@ -59,6 +60,7 @@ function getFormattedTime() {
     return;
   }
 
+  // —— 并行检测平台 ——  
   const checks = [
     check_netflix(),
     check_disneyplus(),
@@ -86,6 +88,7 @@ function getFormattedTime() {
       '部分检测失败，请查看结果';
   }
 
+  // 输出面板结果并立即断开连接
   $done(panel_result);
   $httpClient.disconnect();
 })();
@@ -346,62 +349,36 @@ async function check_tiktok() {
 async function check_hulu() {
   let res = 'Hulu: ';
   try {
-    // 使用 GraphQL 接口获取订阅信息
-    const graphqlData = await Promise.race([
+    const data = await Promise.race([
       timeout(8000),
       new Promise((resolve) => {
-        $httpClient.post({
-          url: 'https://discover.hulu.com/profile/v1/graphql',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': UA,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            query: `
-              query SubscriptionCheck {
-                viewer {
-                  ... on Subscriber {
-                    region {
-                      countryCode
-                    }
-                    subscription {
-                      hasSubscription
-                    }
-                  }
-                }
-              }`
-          })
+        $httpClient.get({
+          url: 'https://discover.hulu.com/content/v4/hubs/home',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
         }, (error, response, body) => {
           if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(body)); } catch { resolve(null); }
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            resolve(null);
+          }
         });
       })
     ]);
 
-    // 验证返回数据
-    if (graphqlData?.data?.viewer?.subscription?.hasSubscription) {
-      const countryCode = graphqlData.data.viewer.region.countryCode;
-      // 二次验证内容可用性
-      const contentCheck = await Promise.race([
-        timeout(8000),
-        new Promise((resolve) => {
-          $httpClient.get({
-            url: 'https://discover.hulu.com/content/v4/collections/featured?schema=web&preferred_audio_language=JA-JP',
-            headers: REQUEST_HEADERS
-          }, (error, response, data) => {
-            resolve(response.status === 200 && data.includes('tt1695843'));
-          });
-        })
-      ]);
-      res += contentCheck 
-        ? `✅ 已解锁，区域: ${countryCode.toUpperCase()}`
-        : '❌ 检测失败，请刷新面板';
+    if (data && data.country_code && Array.isArray(data.components)) {
+      const region = data.country_code;
+      const hasPlayable = data.components.some(hub => hub.items && hub.items.length > 0);
+      if (hasPlayable) {
+        res += `已解锁，区域: ${region.toUpperCase()}`;
+      } else {
+        res += '检测失败，请刷新面板';
+      }
     } else {
-      res += '❌ 未订阅或区域不支持';
+      res += '检测失败，请刷新面板';
     }
   } catch {
-    res += '❌ 检测失败，请刷新面板';
+    res += '检测失败，请刷新面板';
   }
   return res;
 }
@@ -410,48 +387,30 @@ async function check_hulu() {
 async function check_amazon() {
   let res = 'Amazon: ';
   try {
-    // 获取地理区域信息
-    const regionData = await Promise.race([
+    const info = await Promise.race([
       timeout(8000),
       new Promise((resolve) => {
         $httpClient.get({
           url: 'https://www.primevideo.com/api/video/v2/web/atv/regions/current',
-          headers: REQUEST_HEADERS
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
         }, (error, response, data) => {
           if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(data)); } catch { resolve(null); }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve(null);
+          }
         });
       })
     ]);
 
-    if (regionData?.countryCode) {
-      // 验证具体影片播放权限
-      const playbackCheck = await Promise.race([
-        timeout(8000),
-        new Promise((resolve) => {
-          $httpClient.post({
-            url: 'https://www.primevideo.com/api/video/v2/getPlaybackResources',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': UA
-            },
-            body: JSON.stringify({
-              assetId: '0T5XGGQahsM',
-              playbackMode: 'STREAMING'
-            })
-          }, (error, response, data) => {
-            resolve(response.status === 200 && data.includes('playbackResources'));
-          });
-        })
-      ]);
-      res += playbackCheck 
-        ? `✅ 已解锁，区域: ${regionData.countryCode.toUpperCase()}`
-        : '❌ 无法播放内容，区域受限';
+    if (info && info.countryCode) {
+      res += `已解锁，区域: ${info.countryCode.toUpperCase()}`;
     } else {
-      res += '❌ 检测失败，请刷新面板';
+      res += '检测失败，请刷新面板';
     }
   } catch {
-    res += '❌ 检测失败，请刷新面板';
+    res += '检测失败，请刷新面板';
   }
   return res;
 }
@@ -460,44 +419,30 @@ async function check_amazon() {
 async function check_hbomax() {
   let res = 'HBO Max: ';
   try {
-    // 获取地理信息
-    const geoData = await Promise.race([
+    const info = await Promise.race([
       timeout(8000),
       new Promise((resolve) => {
         $httpClient.get({
-          url: 'https://comet.api.hbo.com/geo',
-          headers: {
-            'User-Agent': UA,
-            'Accept': 'application/json'
-          }
+          url: 'https://www.hbomax.com/api/v2/geo',
+          headers: { ...REQUEST_HEADERS, Accept: 'application/json' }
         }, (error, response, data) => {
           if (error || response.status !== 200) return resolve(null);
-          try { resolve(JSON.parse(data)); } catch { resolve(null); }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve(null);
+          }
         });
       })
     ]);
 
-    if (geoData?.countryCode) {
-      // 验证内容列表
-      const contentCheck = await Promise.race([
-        timeout(8000),
-        new Promise((resolve) => {
-          $httpClient.get({
-            url: `https://comet.api.hbo.com/content/v3/collections?product=hboMax&country=${geoData.countryCode}`,
-            headers: REQUEST_HEADERS
-          }, (error, response, data) => {
-            resolve(response.status === 200 && data.includes('featured'));
-          });
-        })
-      ]);
-      res += contentCheck 
-        ? `✅ 已解锁，区域: ${geoData.countryCode.toUpperCase()}`
-        : '❌ 无可用内容，区域受限';
+    if (info && info.country) {
+      res += `已解锁，区域: ${info.country.toUpperCase()}`;
     } else {
-      res += '❌ 检测失败，请刷新面板';
+      res += '检测失败，请刷新面板';
     }
   } catch {
-    res += '❌ 检测失败，请刷新面板';
+    res += '检测失败，请刷新面板';
   }
   return res;
 }
