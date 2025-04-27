@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年4月27日
+# 日期       2025年4月28日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -96,6 +96,7 @@ geodata-loader: standard  # standard:标准加载器 / memconservative:小内存
 geo-auto-update: true # 自动更新
 geo-update-interval: 23 # 小时
 
+# 引用格式  filter: *
 #  节点组：过滤关键词 
 FilterAll: &FilterAll '(?i)(?=.*())^((?!(流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽)).)*$'
 Filterdaily: &Filterdaily '(?i)(?=.*())^((?!(x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽)).)*$'
@@ -107,6 +108,7 @@ FilterSG: &FilterSG '(?i)(?=.*(新|🇸🇬|SG|坡|狮城|Singapore))^((?!(港|�
 FilterJP: &FilterJP '(?i)(?=.*(日|🇯🇵|JP|东京|Japan))^((?!(港|台|韩|新|美|尼|流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽)).)*$'
 FilterTW: &FilterTW '(?i)(?=.*(台|🇹🇼|TW|湾|Taiwan))^((?!(港|日|韩|新|美|流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽)).)*$'
 FilterUS: &FilterUS '(?i)(?=.*(美|US|States|American))^((?!(港|台|日|韩|新|流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽)).)*$'
+# 引用格式  <<: *
 #  测速组 
 UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: false, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 10, timeout: 2000, max-retries: 2, max-failed-times: 3, hidden: true, include-all: true}
 FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 10, timeout: 2000, max-retries: 2, max-failed-times: 3, hidden: true, include-all: true}
@@ -118,6 +120,10 @@ SelectProxy: &SelectProxy {type: select, proxies: [默认代理,手动日常,手
 SelectDIR: &SelectDIR {type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 #  拒绝组 
 SelectRE: &SelectRE {type: select, proxies: [拒绝连接,丢弃连接,直接连接]}
+#  直连组 
+SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,拒绝连接,丢弃连接]}
+#  基础组 
+SelectBase: &SelectBase {type: select, proxies: [默认代理,手动日常,手动自选,故障转移,直接连接,拒绝连接,丢弃连接]}
 # 地区组 
 SubProxyHK: &subProxyHK {type: select, proxies: [香港优选,香港故转,香港散列,香港轮询]}
 SubProxySG: &subProxySG {type: select, proxies: [狮城优选,狮城故转,狮城散列,狮城轮询]}
@@ -146,10 +152,10 @@ proxy-groups:
   - {name: HBO, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/HBO_Max.png}
   - {name: Hulu, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Hulu.png}
   - {name: PrimeVideo, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/primevideo.png}
-  - {name: 国内流量, type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,拒绝连接,丢弃连接], icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/CN.png}
-  - {name: 苹果服务, type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,拒绝连接,丢弃连接], icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Apple.png}
-  - {name: 微软服务, type: select, proxies: [默认代理,手动日常,手动自选,故障转移,直接连接,拒绝连接,丢弃连接], icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Microsoft.png}
-  - {name: DNS服务, type: select, proxies: [默认代理,手动日常,手动自选,故障转移,直接连接,拒绝连接,丢弃连接], icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/DNS.png}
+  - {name: 国内流量, type: select, <<: *SelectCN, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/CN.png}
+  - {name: 苹果服务, type: select, <<: *SelectCN, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Apple.png}
+  - {name: 微软服务, type: select, <<: *SelectBase, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Microsoft.png}
+  - {name: DNS服务, type: select, <<: *SelectBase, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/DNS.png}
 
 # 地区策略 
   - {name: 香港策略, use: [1️⃣配置, 2️⃣配置, 3️⃣配置], <<: *subProxyHK, filter: *FilterHK, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/HK.png}
