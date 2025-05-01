@@ -402,9 +402,10 @@ rule-providers:
   Lan_No_Resolve:          {<<: *Classical, url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan_No_Resolve.yaml}
   STUN:                    {<<: *Classical, url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/STUN/STUN.yaml}
 
+# 域名必须不在geosite,同时IP必须不在geoip,脚本才会触发
 script:
   shortcuts:
-    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn') and not geoip('cn')
+    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn') and not geoip('cn') 
 
 # 规则（从上往下匹配）
 rules:
