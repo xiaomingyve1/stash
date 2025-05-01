@@ -404,7 +404,7 @@ rule-providers:
 
 script:
   shortcuts:
-    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn')
+    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn') and not geoip('cn')
 
 # 规则（从上往下匹配）
 rules:
