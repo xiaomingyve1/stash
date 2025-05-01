@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年4月30日
+# 日期       2025年5月1日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -408,7 +408,7 @@ script:
 
 # 规则（从上往下匹配）
 rules:
-- SCRIPT,quic-!cn,拒绝连接,no-track
+- SCRIPT,quic-!cn,广告规则 # 禁用443端口UDP流量,防止使用国外quic导致的速度不佳
 - GEOSITE,category-ads-all,广告规则
 - RULE-SET,BlockHttpDNS_No_Resolve,广告规则
 - RULE-SET,Hijacking_No_Resolve,广告规则
