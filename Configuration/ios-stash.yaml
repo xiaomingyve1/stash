@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年5月1日
+# 日期       2025年5月2日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -402,10 +402,10 @@ rule-providers:
   Lan_No_Resolve:          {<<: *Classical, url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Lan/Lan_No_Resolve.yaml}
   STUN:                    {<<: *Classical, url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/STUN/STUN.yaml}
 
-# 域名必须不在geosite,同时IP必须不在geoip,脚本规则才会触发 
+# 域名必须不在geosite,脚本规则才会触发 
 script:
   shortcuts:
-    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn') and not geoip('cn')
+    quic-!cn: network == 'udp' and dst_port == 443 and not match_geosite('cn')
 
 # 规则（从上往下匹配）
 rules:
