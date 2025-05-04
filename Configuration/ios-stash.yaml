@@ -115,16 +115,16 @@ FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www
 LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 #  选择组 
-SelectFB: &SelectFB {type: select, proxies: [故障转移,自动选择,手动日常,手动自选,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
-SelectProxy: &SelectProxy {type: select, proxies: [默认代理,手动日常,手动自选,故障转移,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
-SelectDIR: &SelectDIR {type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
-Selectother: &Selectother {type: select, proxies: [故障转移,默认代理,手动日常,手动自选,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
+SelectFB: &SelectFB {type: select, proxies: [故障转移,自动选择,手动选择,手动自选,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
+SelectProxy: &SelectProxy {type: select, proxies: [默认代理,手动选择,手动自选,故障转移,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
+SelectDIR: &SelectDIR {type: select, proxies: [直接连接,默认代理,手动选择,手动自选,故障转移,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
+Selectother: &Selectother {type: select, proxies: [故障转移,默认代理,手动选择,手动自选,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 #  拒绝组 
 SelectRE: &SelectRE {type: select, proxies: [拒绝连接,丢弃连接,直接连接]}
 #  直连组 
-SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,手动日常,手动自选,故障转移,拒绝连接,丢弃连接]}
+SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,手动选择,手动自选,故障转移,拒绝连接,丢弃连接]}
 #  基础组 
-SelectBase: &SelectBase {type: select, proxies: [默认代理,手动日常,手动自选,故障转移,直接连接,拒绝连接,丢弃连接]}
+SelectBase: &SelectBase {type: select, proxies: [默认代理,手动选择,手动自选,故障转移,直接连接,拒绝连接,丢弃连接]}
 # 地区组 
 SubProxyHK: &subProxyHK {type: select, proxies: [香港优选,香港故转,香港散列,香港轮询]}
 SubProxySG: &subProxySG {type: select, proxies: [狮城优选,狮城故转,狮城散列,狮城轮询]}
@@ -137,7 +137,7 @@ SubProxyUS: &subProxyUS {type: select, proxies: [美国优选,美国故转,美�
 
 #  策略组 
 proxy-groups:
-  - {name: 手动日常, type: select, include-all: true, filter: *Filterdaily, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/choose.png}
+  - {name: 手动选择, type: select, include-all: true, filter: *Filterdaily, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/choose.png}
   - {name: 手动自选, type: select, include-all: true, filter: *FilterOption, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/choose1.png}
   - {name: 默认代理, <<: *SelectFB, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/proxy.png}
   - {name: 广告规则, <<: *SelectRE, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/blockAD.png}
