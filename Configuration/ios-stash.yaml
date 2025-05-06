@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年5月4日
+# 日期       2025年5月6日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -110,7 +110,7 @@ FilterTW: &FilterTW '(?i)(?=.*(台|🇹🇼|TW|湾|Taiwan))^((?!(港|日|韩|新
 FilterUS: &FilterUS '(?i)(?=.*(美|US|States|American))^((?!(港|台|日|韩|新|流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽|ipv6)).)*$'
 # 引用格式  <<: *
 #  测速组 
-UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: false, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
