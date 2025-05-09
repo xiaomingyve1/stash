@@ -8,7 +8,7 @@
 # ==============================================================================================================================
 
 # 订阅更新 
-Subscription: &sub {type: http, interval: 3600, max-retries: 2, max-failed-times: 2, health-check: {enable: true, interval: 300, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", max-concurrent-tests: 2, max-retries: 2, max-failed-times: 2}, filter: '(?i)(?=.*())^((?!(群|套餐|期|距离|临|回|招|备|建议|防|禁|推|TG|试|为|佣金|节点|官网|线路|封锁|延迟|广|跳|登|急|少|差|停|计|用|失|质|向|实验|邀请|返利|循环|客服|网站|网址|获取|订阅|机场|下次|版本|官址|已用|联系|邮箱|工单|贩卖|通知|倒卖|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入)).)*$'}
+Subscription: &sub {type: http, interval: 3600, max-retries: 2, max-failed-times: 2, health-check: {enable: true, interval: 300, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", max-concurrent-tests: 1, max-retries: 2, max-failed-times: 2}, filter: '(?i)(?=.*())^((?!(群|套餐|期|距离|临|回|招|备|建议|防|禁|推|TG|试|为|佣金|节点|官网|线路|封锁|延迟|广|跳|登|急|少|差|停|计|用|失|质|向|实验|邀请|返利|循环|客服|网站|网址|获取|订阅|机场|下次|版本|官址|已用|联系|邮箱|工单|贩卖|通知|倒卖|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入)).)*$'}
 proxy-providers:
 # ❗️❗️❗️⚠️⚠️注意：将" 机场订阅URL "替换 订阅链接 文字⚠️⚠️❗️❗️❗️ #
   1️⃣配置: {<<: *sub, url: '订阅链接', override: {additional-prefix: '[1️⃣]'}}
@@ -110,10 +110,10 @@ FilterTW: &FilterTW '(?i)(?=.*(台|🇹🇼|TW|湾|Taiwan))^((?!(港|日|韩|新
 FilterUS: &FilterUS '(?i)(?=.*(美|US|States|American))^((?!(港|台|日|韩|新|流量|x0.5|x2|x3|x5|x8|x10|x12|x15|0.5x|2x|3x|5x|8x|10x|12x|15x|倍|直连|家宽|ipv6)).)*$'
 # 引用格式  <<: *
 #  测速组 
-UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 2, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 1, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 1, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 1, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 1, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 #  选择组 
 SelectFB: &SelectFB {type: select, proxies: [故障转移,自动选择,手动选择,手动自选,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 SelectProxy: &SelectProxy {type: select, proxies: [默认代理,手动选择,手动自选,故障转移,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
@@ -125,7 +125,7 @@ SelectRE: &SelectRE {type: select, proxies: [拒绝连接,丢弃连接,直接连
 SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,手动选择,手动自选,故障转移,拒绝连接,丢弃连接]}
 #  基础组 
 SelectBase: &SelectBase {type: select, proxies: [默认代理,手动选择,手动自选,故障转移,直接连接,拒绝连接,丢弃连接]}
-# 地区组 
+#  地区组 
 SubProxyHK: &subProxyHK {type: select, proxies: [香港优选,香港故转,香港散列,香港轮询]}
 SubProxySG: &subProxySG {type: select, proxies: [狮城优选,狮城故转,狮城散列,狮城轮询]}
 SubProxyJP: &subProxyJP {type: select, proxies: [日本优选,日本故转,日本散列,日本轮询]}
