@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年5月15日
+# 日期       2025年5月18日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -114,10 +114,10 @@ FilterallTW: &FilterallTW '(?i)(?=.*(台|🇹🇼|TW|湾|Taiwan))^((?!(港|日|�
 FilterallUS: &FilterallUS '(?i)(?=.*(美|US|States|American))^((?!(港|台|日|韩|新|流量)).)*$'
 # 引用格式  <<: *
 #  测速组 
-UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
-LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 2, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+UrlTest: &UrlTest {type: url-test, interval: 61, tolerance: 20, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 1000, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+FallBack: &FallBack {type: fallback, interval: 97, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 1000, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+LoadBalanceCH: &LoadBalanceCH {type: load-balance, strategy: consistent-hashing, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 300, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
+LoadBalanceCR: &LoadBalanceCR {type: load-balance, strategy: round-robin, interval: 131, lazy: true, url: 'https://www.gstatic.com/generate_204', expected-status: 204, method: "HEAD", disable-udp: false, follow_redirects: true, max-concurrent-tests: 3, timeout: 300, max-retries: 2, max-failed-times: 2, hidden: true, include-all: true}
 #  选择组 
 SelectFB: &SelectFB {type: select, proxies: [故障转移,自动选择,冷门自选,直接连接,拒绝连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 SelectProxy: &SelectProxy {type: select, proxies: [默认代理,自动选择,冷门自选,故障转移,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
