@@ -129,11 +129,11 @@ SelectBase: &SelectBase {type: select, proxies: [默认代理,自动选择,冷�
 #  拒绝组 
 SelectRE: &SelectRE {type: select, proxies: [拒绝连接,丢弃连接,直接连接]}
 #  地区组 
-SubProxyHK: &subProxyHK {type: select, proxies: [香港优选,香港故转,香港散列,香港轮询]}
-SubProxySG: &subProxySG {type: select, proxies: [狮城优选,狮城故转,狮城散列,狮城轮询]}
-SubProxyJP: &subProxyJP {type: select, proxies: [日本优选,日本故转,日本散列,日本轮询]}
-SubProxyTW: &subProxyTW {type: select, proxies: [台湾优选,台湾故转,台湾散列,台湾轮询]}
-SubProxyUS: &subProxyUS {type: select, proxies: [美国优选,美国故转,美国散列,美国轮询]}
+SubProxyHK: &subProxyHK {type: select, proxies: [香港故转,香港优选,香港散列,香港轮询]}
+SubProxySG: &subProxySG {type: select, proxies: [狮城故转,狮城优选,狮城散列,狮城轮询]}
+SubProxyJP: &subProxyJP {type: select, proxies: [日本故转,日本优选,日本散列,日本轮询]}
+SubProxyTW: &subProxyTW {type: select, proxies: [台湾故转,台湾优选,台湾散列,台湾轮询]}
+SubProxyUS: &subProxyUS {type: select, proxies: [美国故转,美国优选,美国散列,美国轮询]}
 
 # wifi策略可写 ssid-policy: {cellular: 默认代理, ss1: 直接连接, ss2: 直接连接, ss3: 直接连接, ss4: 直接连接, ss5: 直接连接, ss6: 直接连接, ss7: 直接连接}
 # 例-{name: 默认代理, <<: *SelectFB, ssid-policy: {cellular: 故障转移, 明月: 直接连接, mingyve: 直接连接}}
@@ -156,7 +156,6 @@ proxy-groups:
   - {name: HBO, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/HBO_Max.png}
   - {name: Hulu, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Hulu1.png}
   - {name: PrimeVideo, <<: *SelectProxy, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/primevideo.png}
-  - {name: 国内流量, <<: *SelectCN, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/CN.png}
   - {name: 苹果服务, <<: *SelectCN, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Apple.png}
   - {name: 微软服务, <<: *SelectBase, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/Microsoft.png}
   - {name: DNS服务, <<: *SelectBase, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/DNS.png}
@@ -167,7 +166,8 @@ proxy-groups:
   - {name: 日本策略, use: [1️⃣配置, 2️⃣配置, 3️⃣配置], <<: *subProxyJP, filter: *FilterallJP, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/japan.png}
   - {name: 台湾策略, use: [1️⃣配置, 2️⃣配置, 3️⃣配置], <<: *subProxyTW, filter: *FilterallTW, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/taiwan.png}
   - {name: 美国策略, use: [1️⃣配置, 2️⃣配置, 3️⃣配置], <<: *subProxyUS, filter: *FilterallUS, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/unitedstates.png}
-
+# 固定策略 
+  - {name: 国内流量,  type: select, proxies: [直接连接], hidden: true, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/CN.png}
 ###   以下策略组已隐藏 
 # 自动选择 
   - {name: 香港优选, <<: *UrlTest, filter: *FilterHK, icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/HK.png}
