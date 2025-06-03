@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年5月30日
+# 日期       2025年6月3日
 # 注意       仅支持stash，在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://raw.githubusercontent.com/xiaomingyve1/openclash/refs/heads/main/Configuration/ios-stash.yaml
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -123,7 +123,7 @@ SelectFB: &SelectFB {type: select, proxies: [故障转移,自动选择,冷门自
 SelectProxy: &SelectProxy {type: select, proxies: [默认代理,自动选择,冷门自选,故障转移,直接连接,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 SelectDIR: &SelectDIR {type: select, proxies: [直接连接,默认代理,自动选择,冷门自选,故障转移,香港策略,狮城策略,日本策略,台湾策略,美国策略]}
 #  直连组 
-SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,自动选择,冷门自选,故障转移,拒绝连接,丢弃连接]}
+SelectCN: &SelectCN {type: select, proxies: [直接连接,默认代理,自动选择,冷门自选,故障转移]}
 #  基础组 
 SelectBase: &SelectBase {type: select, proxies: [默认代理,自动选择,冷门自选,故障转移,直接连接,拒绝连接,丢弃连接]}
 #  拒绝组 
