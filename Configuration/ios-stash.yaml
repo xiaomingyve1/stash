@@ -1,6 +1,6 @@
 # ==============================================================================================================================
 # Github     @xiaomingyve1
-# 日期       2025年6月26日
+# 日期       2025年11月2日
 # 注意       在 可视化编辑器-远程代理集 加入您的机场订阅链接
 # 地址       https://github.com/xiaomingyve1/stash
 # 功能       支持手动选择、自动测速、兜底分流、故障转移、负载均衡、国家分组、多机场订阅等
@@ -8,7 +8,7 @@
 # ==============================================================================================================================
 
 # 订阅更新 
-Subscription: &sub {type: http, interval: 86400, max-retries: 2, max-failed-times: 2, health-check: {enable: true, interval: 137, url: 'https://www.gstatic.com/generate_204', max-concurrent-tests: 10, max-retries: 2, max-failed-times: 2}, filter: '(?i)(?=.*())^((?!(群|套餐|期|距离|临|回|招|备|建议|防|禁|推|TG|试|为|佣金|节点|官网|线路|封锁|延迟|广告|跳|登|急|少|差|停|计|用|失|质|向|实验|邀请|返利|循环|客服|网站|网址|获取|订阅|机场|下次|版本|官址|已用|联系|邮箱|工单|贩卖|通知|倒卖|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入)).)*$'}
+Subscription: &sub {type: http, interval: 86400, proxy: 故障转移, max-retries: 2, max-failed-times: 2, health-check: {enable: true, interval: 137, url: 'https://www.gstatic.com/generate_204', max-concurrent-tests: 10, max-retries: 2, max-failed-times: 2}, filter: '(?i)(?=.*())^((?!(群|套餐|期|距离|临|回|招|备|建议|防|禁|推|TG|试|为|佣金|节点|官网|线路|封锁|延迟|广告|跳|登|急|少|差|停|计|用|失|质|向|实验|邀请|返利|循环|客服|网站|网址|获取|订阅|机场|下次|版本|官址|已用|联系|邮箱|工单|贩卖|通知|倒卖|国内|地址|频道|无法|说明|使用|提示|特别|访问|支持|教程|关注|更新|作者|加入)).)*$'}
 proxy-providers:
 # ❗️❗️❗️⚠️⚠️注意：将" 机场订阅URL "替换 订阅链接 文字⚠️⚠️❗️❗️❗️ #
   1️⃣配置: {<<: *sub, url: '订阅链接', override: {additional-prefix: '[1️⃣]'}}
@@ -31,7 +31,7 @@ tcp-concurrent: true  # 启用TCP并发
 find-process-mode: 'off'  # 进程匹配 always / strict / off
 disable-keep-alive: false # 客户端和服务器连接复用 true为禁用
 keep-alive-idle: 600  # TCP连接空闲时间
-keep-alive-interval: 30  # TCP连接活动的间隔时间
+keep-alive-interval: 15  # TCP连接活动的间隔时间
 external-controller: 0.0.0.0:9090 #页面端口
 secret:  # 页面登录密钥（空）
 
@@ -203,7 +203,7 @@ proxy-groups:
   - {name: 丢弃连接, type: select, disable-udp: true, hidden: true, proxies: [ REJECT-DROP ], icon: https://raw.githubusercontent.com/xiaomingyve1/openclash/main/icon/REJECT-DROP.png}
 
 # 规则集更新 
-ClassicalYaml: &Classical  {type: http, interval: 75600, behavior: classical, format: yaml, proxy: 默认代理}
+ClassicalYaml: &Classical  {type: http, interval: 75600, behavior: classical, format: yaml, proxy: 故障转移}
 # 规则提供者 
 rule-providers:
   # DNS服务
