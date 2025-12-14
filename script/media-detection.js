@@ -14,20 +14,7 @@ const STATUS_NOT_AVAILABLE = 0;
 const STATUS_TIMEOUT = -1;
 const STATUS_ERROR = -2;
 
-// ================ 网络检测 ================
-async function check_network_status() {
-  return new Promise((resolve, reject) => {
-    $httpClient.get(
-      { url: 'https://www.google.com/generate_204', timeout: 5000 },
-      (error, response) => {
-        if (error || response.status !== 204) reject('网络不可用');
-        else resolve('ok');
-      }
-    );
-  });
-}
-
-// ================ 时间格式化 ================
+// ================ 辅助：获取时间 ================
 function getFormattedTime() {
   const now = new Date();
   return now.toLocaleTimeString('zh-CN', {
@@ -38,56 +25,88 @@ function getFormattedTime() {
   });
 }
 
-// ================ 主体检测流程 ================
+// ================ 主体入口 (已修改以支持单项检测) ================
 ;(async () => {
-  let panel_result = {
-    title: '多平台流媒体解锁检测',
-    content: '',
-    icon: 'play.tv.fill',
-    'icon-color': '#FF2D55'
+  // 获取 Stash 传入的参数，默认为 Netflix
+  const target = typeof $argument !== 'undefined' ? $argument : 'Netflix';
+  
+  // 定义每个服务的配置：检测函数、图标、图标颜色、显示标题
+  const services = {
+    'Netflix': { 
+      fn: check_netflix, 
+      icon: 'play.tv.fill', 
+      color: '#E50914',
+      title: 'Netflix 检测'
+    },
+    'Disney': { 
+      fn: check_disneyplus, 
+      icon: 'play.circle.fill', 
+      color: '#113CCF',
+      title: 'Disney+ 检测'
+    },
+    'YouTube': { 
+      fn: check_youtube_premium, 
+      icon: 'play.rectangle.fill', 
+      color: '#FF0000',
+      title: 'YouTube Premium'
+    },
+    'ChatGPT': { 
+      fn: check_chatgpt, 
+      icon: 'message.fill', 
+      color: '#10A37F',
+      title: 'ChatGPT 检测'
+    },
+    'TikTok': { 
+      fn: check_tiktok, 
+      icon: 'music.note', 
+      color: '#000000',
+      title: 'TikTok 检测'
+    }
   };
 
-  try {
-    await check_network_status();
-  } catch (e) {
-    panel_result.content =
-      `最后刷新时间: ${getFormattedTime()}` +
-      '\n────────────────\n' +
-      '网络不可用，请检查连接';
-    $done(panel_result);
-    $httpClient.disconnect();
+  const currentService = services[target];
+
+  // 如果没有匹配到参数，或者参数错误，显示错误信息
+  if (!currentService) {
+    $done({
+      title: '配置错误',
+      content: `未知的检测参数: ${target}`,
+      icon: 'exclamationmark.triangle'
+    });
     return;
   }
 
-  // —— 并行检测平台 ——  
-  const checks = [
-    check_netflix(),
-    check_disneyplus(),
-    check_chatgpt(),
-    check_youtube_premium(),
-    check_tiktok()
-  ];
-
-  let results;
   try {
-    results = await Promise.all(checks);
-    const timeHeader = [
-      `最后刷新时间: ${getFormattedTime()}`,
-      '────────────────'
-    ];
-    panel_result.content = [...timeHeader, ...results].join('\n');
-  } catch (e) {
-    console.log('检测异常:', e);
-    panel_result.content =
-      `最后刷新时间: ${getFormattedTime()}` +
-      '\n────────────────\n' +
-      '部分检测失败，请查看结果';
-  }
+    // 执行对应的检测函数
+    // 注意：这里不需要 check_network_status，因为如果网络不通，具体的检测函数会报错或超时，效果一样且速度更快
+    let resultText = await currentService.fn();
+    
+    // 为了美观，去掉原本函数返回字符串中的前缀（例如 "Netflix: "），只保留结果
+    // 你的原函数返回格式是 "Title: Result"，我们这里做一个简单的切割优化显示
+    let content = resultText;
+    if (resultText.includes(': ')) {
+       content = resultText.split(': ')[1];
+    }
 
-  // 输出面板结果并立即断开连接
-  $done(panel_result);
-  $httpClient.disconnect();
+    $done({
+      title: currentService.title,
+      content: content + `  [${getFormattedTime()}]`, // 在结果后加上时间
+      icon: currentService.icon,
+      'icon-color': currentService.color
+    });
+
+  } catch (e) {
+    console.log(`[${target}] 检测异常:`, e);
+    $done({
+      title: currentService.title,
+      content: '检测失败，请检查网络或刷新',
+      icon: currentService.icon,
+      'icon-color': '#999999'
+    });
+  }
 })();
+
+// ================ 以下为原版检测逻辑 (未修改检测方式) ================
 
 // ================ Netflix ================
 async function check_netflix() {
@@ -125,7 +144,7 @@ async function check_netflix() {
     })
     .catch((error) => {
       if (error !== 'BreakSignal') {
-        res += '检测失败，请刷新面板';
+        res += '检测失败';
       }
     });
   return res;
@@ -141,10 +160,10 @@ async function check_disneyplus() {
     } else if (status === STATUS_COMING) {
       res += '即将上线，区域: ' + region.toUpperCase();
     } else {
-      res += '检测失败，请刷新面板';
+      res += '未解锁';
     }
   } catch (e) {
-    res += '检测失败，请刷新面板';
+    res += '检测失败';
   }
   return res;
 }
@@ -267,10 +286,10 @@ async function check_chatgpt() {
     if (status === STATUS_AVAILABLE) {
       result += `已解锁，区域: ${country.toUpperCase()}`;
     } else {
-      result += '检测失败，请刷新面板';
+      result += '未解锁';
     }
   } catch {
-    result += '检测失败，请刷新面板';
+    result += '检测失败';
   }
   return result;
 }
@@ -301,11 +320,11 @@ async function check_youtube_premium() {
   let res = 'YouTube: ';
   await inner_check()
     .then((code) => {
-      if (code === 'Not Available') res += '检测失败，请刷新面板';
+      if (code === 'Not Available') res += '未解锁';
       else res += '已解锁，区域: ' + code.toUpperCase();
     })
     .catch(() => {
-      res += '检测失败，请刷新面板';
+      res += '检测失败';
     });
   return res;
 }
@@ -336,7 +355,7 @@ async function check_tiktok() {
       ? '受限区域 🚫'
       : `已解锁，区域: ${response.region}`;
   } catch {
-    res = 'TikTok: 检测失败，请刷新面板';
+    res = 'TikTok: 检测失败';
   }
   return res;
 }
