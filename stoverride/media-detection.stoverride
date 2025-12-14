@@ -1,19 +1,24 @@
-name: 增强流媒体检测
-desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。
+name: 增强流媒体检测(面板版)
+desc: 在第三方服务中显示流媒体检测结果。注意：由于脚本逻辑限制，结果将显示在同一个卡片内。
 author: xiaomingyve1
 update-url: https://github.com/xiaomingyve1/stash
 enable: true
 
+# 【关键修改1】使用 panel-items 将脚本注册为服务面板
 panel-items:
   - script: liumeitijiance
 
 script-providers:
   liumeitijiance:
     url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    no-cache: true
+    # 【关键修改2】设置为 10秒 间隔，模拟“实时”效果（会增加耗电）
+    interval: 10
+    
+    # 允许手动刷新和网络变动刷新
     schedule:
-      - cron: "* * * * *"
-      - interval: 300
       - network-change
       - manual
+    
+    # 强制不缓存，确保每次看到最新数据
+    no-cache: true
     policy: no-cache
