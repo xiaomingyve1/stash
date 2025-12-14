@@ -1,132 +1,172 @@
-name: 流媒体检测(服务面板版)
-desc: 独立显示 Netflix/Disney+/YouTube/TikTok/ChatGPT。已针对服务面板优化，强制30秒刷新。
+name: 流媒体检测(第三方服务修复版)
+desc: 模拟 ippure 方案，利用 collapsed 属性强制在第三方服务中显示独立卡片。
 author: xiaomingyve1
 enable: true
 
-# ================= 1. 面板入口 =================
-# 这里的名称必须和下方 script-providers 里的名称完全一致
-panel-items:
-  - script: check-netflix
-  - script: check-disney
-  - script: check-youtube
-  - script: check-tiktok
-  - script: check-chatgpt
+# 【重点修正】
+# 我们不使用 panel-items，而是使用 tiles 并配合 collapsed 属性
+# Stash 会将 collapsed: true 的磁贴自动移动到“第三方服务”列表中
+tiles:
+  - name: netflix-check
+    collapsed: true
+  - name: disney-check
+    collapsed: true
+  - name: youtube-check
+    collapsed: true
+  - name: tiktok-check
+    collapsed: true
+  - name: chatgpt-check
+    collapsed: true
 
-# ================= 2. 脚本逻辑 =================
 script-providers:
-  # --- Netflix ---
-  check-netflix:
+  # --- 1. Netflix ---
+  netflix-check:
     argument: "Netflix"
+    # 【你要求的】强制 30秒 刷新，保持服务活跃
     interval: 30
+    # 【你要求的】标记为折叠，确保进入服务列表
+    collapsed: true
     schedule: [manual, network-change]
     no-cache: true
-    content: &script_code |
+    content: &main_script |
       (async () => {
         const target = typeof $argument !== 'undefined' ? $argument : 'Netflix';
         
-        // 1. 配置参数
-        const CFG = {
-          'Netflix': { url: 'https://www.netflix.com/title/81280792', icon: 'play.tv.fill', color: '#E50914' },
-          'Disney':  { url: 'https://www.disneyplus.com/', icon: 'play.circle.fill', color: '#113CCF' },
-          'YouTube': { url: 'https://www.youtube.com/premium', icon: 'play.rectangle.fill', color: '#FF0000' },
-          'TikTok':  { url: 'https://www.tiktok.com/', icon: 'music.note', color: '#000000' },
-          'ChatGPT': { url: 'https://chat.openai.com/cdn-cgi/trace', icon: 'message.fill', color: '#10A37F' }
+        // --- 图标与配色 ---
+        const UI = {
+          'Netflix': { icon: 'play.tv.fill', color: '#E50914' },
+          'Disney':  { icon: 'play.circle.fill', color: '#113CCF' },
+          'YouTube': { icon: 'play.rectangle.fill', color: '#FF0000' },
+          'TikTok':  { icon: 'music.note', color: '#000000' },
+          'ChatGPT': { icon: 'message.fill', color: '#10A37F' }
         };
-        const cur = CFG[target];
-        
-        // 2. 超时保护 (5秒强制返回，防止面板空白)
-        const timeout = new Promise(resolve => setTimeout(() => resolve({code:'Timeout'}), 5000));
-        
-        // 3. 检测逻辑
-        const check = new Promise(resolve => {
-          const opts = { url: cur.url, headers: {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'}, timeout: 4000 };
+        const uiConf = UI[target] || UI['Netflix'];
+
+        // --- 核心逻辑 ---
+        const check = async () => {
+          const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36';
           
-          // 特殊处理 Disney POST
-          if(target === 'Disney') {
-            opts.url = 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql';
-            opts.headers['Authorization'] = 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84';
-            opts.headers['Content-Type'] = 'application/json';
-            opts.body = JSON.stringify({query: 'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }', variables: {input: {applicationRuntime: 'chrome', attributes: {browserName: 'chrome', browserVersion: '94.0.4606', operatingSystem: 'macintosh'}, deviceFamily: 'browser', deviceProfile: 'macosx'}}});
-            $httpClient.post(opts, (e,r,d) => resolve({e,r,d}));
-          } else {
-            $httpClient.get(opts, (e,r,d) => resolve({e,r,d}));
+          // 1. Netflix
+          if (target === 'Netflix') {
+            return new Promise(resolve => {
+              $httpClient.get({url: 'https://www.netflix.com/title/81280792', headers: {'User-Agent': UA}, timeout: 4000}, (e,r,d) => {
+                if(e) return resolve('检测失败');
+                if(r.status===403) return resolve('未解锁');
+                if(r.status===404) return resolve('仅自制剧');
+                if(r.status===200) {
+                   const url = r.headers['x-originating-url'];
+                   const region = url ? url.split('/')[3].split('-')[0].toUpperCase() : 'US';
+                   resolve('已解锁: ' + region);
+                }
+                resolve('检测出错');
+              });
+            });
           }
-        });
+          
+          // 2. Disney+
+          if (target === 'Disney') {
+            return new Promise(resolve => {
+              $httpClient.post({
+                url: 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql',
+                headers: {'User-Agent': UA, 'Authorization':'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84', 'Content-Type':'application/json'},
+                body: JSON.stringify({query:'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }', variables:{input:{applicationRuntime:'chrome', attributes:{browserName:'chrome', browserVersion:'94.0.4606', operatingSystem:'macintosh'}, deviceFamily:'browser', deviceProfile:'macosx'}}}),
+                timeout: 4000
+              }, (e,r,d) => {
+                if(e) return resolve('检测失败');
+                try {
+                  const j = JSON.parse(d);
+                  if(j.errors) return resolve('未解锁');
+                  const { location, inSupportedLocation } = j.extensions.sdk.session;
+                  if(!inSupportedLocation) return resolve('即将上线: ' + location.countryCode);
+                  resolve('已解锁: ' + location.countryCode);
+                } catch { resolve('未解锁'); }
+              });
+            });
+          }
 
-        // 4. 执行并处理结果
+          // 3. YouTube
+          if (target === 'YouTube') {
+             return new Promise(resolve => {
+               $httpClient.get({url:'https://www.youtube.com/premium', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
+                 if(e||r.status!==200) return resolve('检测失败');
+                 if(d.includes('Premium is not available')) return resolve('未解锁');
+                 const m = /"countryCode":"(.*?)"/.exec(d);
+                 resolve('Premium: ' + (m ? m[1] : 'US'));
+               });
+             });
+          }
+
+          // 4. TikTok
+          if (target === 'TikTok') {
+             return new Promise(resolve => {
+               $httpClient.get({url:'https://www.tiktok.com/', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
+                 if(e) return resolve('检测失败');
+                 const m = /region.*?:.*?"([A-Z]{2})"/ .exec(d);
+                 if(m && m[1]==='CN') return resolve('受限区域');
+                 if(m) return resolve('已解锁: ' + m[1]);
+                 resolve('检测失败');
+               });
+             });
+          }
+
+          // 5. ChatGPT
+          if (target === 'ChatGPT') {
+             return new Promise(resolve => {
+               $httpClient.get({url:'https://chat.openai.com/cdn-cgi/trace', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
+                  if(e) return resolve('检测失败');
+                  const m = /loc=([A-Z]{2})/.exec(d);
+                  if(m) resolve('已解锁: ' + m[1]);
+                  else resolve('未解锁');
+               });
+             });
+          }
+          
+          return Promise.resolve('未知服务');
+        };
+
+        // --- 执行输出 ---
         try {
-          const res = await Promise.race([check, timeout]);
-          let msg = '检测失败';
-          let color = '#999999';
-
-          if (res.code === 'Timeout') {
-            msg = '请求超时';
-          } else if (res.e || !res.r) {
-            msg = '网络错误';
-          } else {
-            // --- 结果解析 ---
-            const { r, d } = res;
-            // Netflix
-            if (target === 'Netflix') {
-               if(r.status===200) { const u=r.headers['x-originating-url']; msg='已解锁: '+(u?u.split('/')[3].split('-')[0].toUpperCase():'US'); color=cur.color; }
-               else if(r.status===404) { msg='仅自制剧'; color='#FF9500'; }
-               else { msg='未解锁'; }
-            }
-            // Disney
-            else if (target === 'Disney') {
-               if(r.status===200) { try{const j=JSON.parse(d); if(j.errors)throw 1; const loc=j.extensions.sdk.session.location.countryCode; msg='已解锁: '+loc; color=cur.color;}catch{msg='未解锁';} }
-               else { msg='未解锁'; }
-            }
-            // YouTube
-            else if (target === 'YouTube') {
-               if(d.includes('Premium is not available')) { msg='未解锁'; }
-               else { const m=/"countryCode":"(.*?)"/.exec(d); msg='Premium: '+(m?m[1]:'US'); color=cur.color; }
-            }
-            // TikTok
-            else if (target === 'TikTok') {
-               const m=/region.*?:.*?"([A-Z]{2})"/ .exec(d);
-               if(m && m[1]!=='CN') { msg='已解锁: '+m[1]; color=cur.color; }
-               else { msg='受限/失败'; }
-            }
-            // ChatGPT
-            else if (target === 'ChatGPT') {
-               const m=/loc=([A-Z]{2})/.exec(d);
-               if(m) { msg='已解锁: '+m[1]; color=cur.color; }
-               else { msg='未解锁'; }
-            }
-          }
-
-          $done({ title: target, content: msg, icon: cur.icon, 'icon-color': color });
+           const res = await check();
+           $done({
+             title: target,
+             content: res,
+             icon: uiConf.icon,
+             'icon-color': uiConf.color
+           });
         } catch(e) {
-          $done({ title: target, content: '脚本错误', icon: 'exclamationmark.triangle' });
+           $done({title: target, content: '错误', icon: 'xmark.octagon'});
         }
       })();
 
-  # --- 其他服务 (复用代码) ---
-  check-disney:
+  # --- 其他 4 个服务 (引用上方脚本) ---
+  disney-check:
     argument: "Disney"
     interval: 30
+    collapsed: true
     schedule: [manual, network-change]
     no-cache: true
-    content: *script_code
+    content: *main_script
 
-  check-youtube:
+  youtube-check:
     argument: "YouTube"
     interval: 30
+    collapsed: true
     schedule: [manual, network-change]
     no-cache: true
-    content: *script_code
+    content: *main_script
 
-  check-tiktok:
+  tiktok-check:
     argument: "TikTok"
     interval: 30
+    collapsed: true
     schedule: [manual, network-change]
     no-cache: true
-    content: *script_code
+    content: *main_script
 
-  check-chatgpt:
+  chatgpt-check:
     argument: "ChatGPT"
     interval: 30
+    collapsed: true
     schedule: [manual, network-change]
     no-cache: true
-    content: *script_code
+    content: *main_script
