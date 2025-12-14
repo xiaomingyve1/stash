@@ -8,5 +8,5 @@ tiles:
 
 script-providers:
   third-party-services:
-    url: https://raw.githubusercontent.com/你的GitHub用户名/你的仓库名/main/media-detection.js
+    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
     interval: 30
