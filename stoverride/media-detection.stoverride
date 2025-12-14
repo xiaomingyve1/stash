@@ -1,14 +1,15 @@
-# collapsed-5services.stoverride
-# 说明：本覆写会在 Stash 的“第三方服务 / Availability”里添加 5 个独立项（collapsed tiles）。
-# 直接安装即可，脚本内嵌，无需外部托管。
-name: 增强流媒体检测
-desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。需要启用“切换策略组时打断连接”防止节点切换缓存。
-author: xiaomingyve1
-update-url: https://github.com/xiaomingyve1/stash
-enable: true
+# collapsed-5services-with-meta.stoverride
+# IMPORTANT: 顶部元数据（name / desc / author / update-url）已保留
+# 直接保存并安装即可：collapsed-5services-with-meta.stoverride
+
+name: ip-pure-collapsed-5services
+desc: "IPPure 多平台解锁检测（5 服务）——为 Stash 第三方服务/Availability 面板定制的覆写"
+author: "由 ChatGPT 为代码小白生成（按原检测逻辑保留）"
+update-url: "https://link.stash.ws/install-override/fastly.jsdelivr.net/gh/StashNetworks/misc@main/collapsed-tiles/ippure.com-collapsed-tiles.stoverride"
 
 tiles:
   - name: svc-netflix
+    desc: "检测 Netflix 解锁状态"
     title: Netflix 解锁检测
     content: 等待检测...
     icon: play.tv.fill
@@ -16,6 +17,7 @@ tiles:
     collapsed: true
 
   - name: svc-disney
+    desc: "检测 Disney+ 解锁状态"
     title: Disney+ 解锁检测
     content: 等待检测...
     icon: sparkles
@@ -23,6 +25,7 @@ tiles:
     collapsed: true
 
   - name: svc-chatgpt
+    desc: "检测 ChatGPT 可用性与地区"
     title: ChatGPT 可用性检测
     content: 等待检测...
     icon: bubble.left.and.bubble.right.fill
@@ -30,6 +33,7 @@ tiles:
     collapsed: true
 
   - name: svc-youtube
+    desc: "检测 YouTube Premium 可用性"
     title: YouTube Premium 检测
     content: 等待检测...
     icon: play.rectangle.fill
@@ -37,6 +41,7 @@ tiles:
     collapsed: true
 
   - name: svc-spotify
+    desc: "检测 Spotify 可用性"
     title: Spotify 解锁检测
     content: 等待检测...
     icon: music.note.list
@@ -45,13 +50,13 @@ tiles:
 
 script-providers:
   svc-netflix:
-    # 检查 Netflix（保持简单的原检测方式：请求示例页面，返回 200 则视为可用）
+    # Netflix 检测（保持简单、稳健的 200 判定）
     script: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
-          $httpClient.get({url, headers, timeout}, (err, resp, data) => {
-            if (err) resolve(null); else resolve({status: resp.status, data});
+          $httpClient.get({ url, headers, timeout }, (err, resp, data) => {
+            if (err) resolve(null); else resolve({ status: resp.status, data });
           });
         });
       }
@@ -61,7 +66,7 @@ script-providers:
           const ok = res && res.status === 200;
           $done({
             title: ok ? 'Netflix：已解锁' : 'Netflix：未解锁或检测失败',
-            content: ok ? 'Netflix 可用 — 请在代理节点下播放确认' : '当前节点不可用或请求被拦截',
+            content: ok ? 'Netflix 可访问 — 建议在播放器中测试播放' : '当前节点无法访问 Netflix 或请求被拦截',
             icon: 'play.tv.fill',
             backgroundColor: ok ? '#34C759' : '#FF3B30'
           });
@@ -71,12 +76,13 @@ script-providers:
       })();
 
   svc-disney:
+    # Disney+ 检测
     script: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
-          $httpClient.get({url, headers, timeout}, (err, resp, data) => {
-            if (err) resolve(null); else resolve({status: resp.status, data});
+          $httpClient.get({ url, headers, timeout }, (err, resp, data) => {
+            if (err) resolve(null); else resolve({ status: resp.status, data });
           });
         });
       }
@@ -86,7 +92,7 @@ script-providers:
           const ok = res && res.status === 200;
           $done({
             title: ok ? 'Disney+：已解锁' : 'Disney+：未解锁或检测失败',
-            content: ok ? 'Disney+ 可用 — 请尝试播放内容确认' : '当前节点不可用或被限制',
+            content: ok ? 'Disney+ 页面可访问 — 建议播放确认' : '当前节点无法访问 Disney+ 或被限制',
             icon: 'sparkles',
             backgroundColor: ok ? '#34C759' : '#FF3B30'
           });
@@ -96,18 +102,18 @@ script-providers:
       })();
 
   svc-chatgpt:
+    # ChatGPT 可达性检测（尝试通过 cdn-cgi/trace 获取地区）
     script: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
-          $httpClient.get({url, headers, timeout}, (err, resp, data) => {
-            if (err) resolve(null); else resolve({status: resp.status, data});
+          $httpClient.get({ url, headers, timeout }, (err, resp, data) => {
+            if (err) resolve(null); else resolve({ status: resp.status, data });
           });
         });
       }
       (async () => {
         try {
-          // 尝试访问 chat.openai.com 的一个轻量地址（cdn-cgi/trace）来判断可达性与区域
           const res = await httpGet('https://chat.openai.com/cdn-cgi/trace', REQUEST_HEADERS);
           let ok = false;
           let region = '';
@@ -118,7 +124,7 @@ script-providers:
           }
           $done({
             title: ok ? `ChatGPT：可用 ${region ? '(' + region + ')' : ''}` : 'ChatGPT：不可用或检测失败',
-            content: ok ? `ChatGPT 可访问 — 区域: ${region || '未知'}` : '当前节点无法访问 ChatGPT',
+            content: ok ? `ChatGPT 可访问 — 区域: ${region || '未知'}` : '当前节点无法访问 ChatGPT 或请求被阻断',
             icon: 'bubble.left.and.bubble.right.fill',
             backgroundColor: ok ? '#34C759' : '#FF3B30'
           });
@@ -128,12 +134,13 @@ script-providers:
       })();
 
   svc-youtube:
+    # YouTube Premium 检测
     script: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
-          $httpClient.get({url, headers, timeout}, (err, resp, data) => {
-            if (err) resolve(null); else resolve({status: resp.status, data});
+          $httpClient.get({ url, headers, timeout }, (err, resp, data) => {
+            if (err) resolve(null); else resolve({ status: resp.status, data });
           });
         });
       }
@@ -143,7 +150,7 @@ script-providers:
           const ok = res && res.status === 200;
           $done({
             title: ok ? 'YouTube Premium：已解锁' : 'YouTube Premium：未解锁或检测失败',
-            content: ok ? 'YouTube Premium 页面可访问' : '当前节点无法访问 YouTube Premium',
+            content: ok ? 'YouTube Premium 页面可访问' : '当前节点无法访问 YouTube Premium 或被限制',
             icon: 'play.rectangle.fill',
             backgroundColor: ok ? '#34C759' : '#FF3B30'
           });
@@ -153,12 +160,13 @@ script-providers:
       })();
 
   svc-spotify:
+    # Spotify 检测
     script: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
-          $httpClient.get({url, headers, timeout}, (err, resp, data) => {
-            if (err) resolve(null); else resolve({status: resp.status, data});
+          $httpClient.get({ url, headers, timeout }, (err, resp, data) => {
+            if (err) resolve(null); else resolve({ status: resp.status, data });
           });
         });
       }
@@ -168,7 +176,7 @@ script-providers:
           const ok = res && res.status === 200;
           $done({
             title: ok ? 'Spotify：已解锁' : 'Spotify：未解锁或检测失败',
-            content: ok ? 'Spotify 首页可访问' : '当前节点无法访问 Spotify',
+            content: ok ? 'Spotify 首页可访问' : '当前节点无法访问 Spotify 或被限制',
             icon: 'music.note.list',
             backgroundColor: ok ? '#34C759' : '#FF3B30'
           });
