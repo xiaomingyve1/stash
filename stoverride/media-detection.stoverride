@@ -1,13 +1,12 @@
 name: 增强流媒体检测
-desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。需要启用“切换策略组时打断连接”防止节点切换缓存。
+desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。
 author: xiaomingyve1
 update-url: https://github.com/xiaomingyve1/stash
 enable: true
-tiles:
-  - name: liumeitijiance
-    icon: "play.tv.fill"
-    label-color: "#FF2D55"
-    background-color: "#FF2D55"
+
+panel-items:
+  - script: liumeitijiance
+
 script-providers:
   liumeitijiance:
     url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
