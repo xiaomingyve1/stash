@@ -1,49 +1,165 @@
-name: 增强流媒体检测(独立面板)
-desc: 独立显示5个流媒体服务的解锁状态。需配合更新后的脚本使用。
+name: 流媒体检测(内嵌本地版)
+desc: 在第三方服务中显示 Netflix/Disney+/YouTube/TikTok/ChatGPT 独立检测结果。代码已内嵌，无需远程下载。
 author: xiaomingyve1
-update-url: https://github.com/xiaomingyve1/stash
 enable: true
 
-# 将5个检测项注册到“第三方服务”面板
+# ================= 1. 定义面板入口 =================
+# 这里决定了在“第三方服务”列表中显示哪些项目
 panel-items:
-  - script: check-netflix
-  - script: check-disney
-  - script: check-youtube
-  - script: check-chatgpt
-  - script: check-tiktok
+  - script: netflix-check
+  - script: disney-check
+  - script: youtube-check
+  - script: tiktok-check
+  - script: chatgpt-check
 
+# ================= 2. 定义脚本逻辑 =================
 script-providers:
-  check-netflix:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
+  # --- Netflix ---
+  netflix-check:
     argument: "Netflix"
-
-  check-disney:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
+    interval: 600
     schedule: [manual, network-change]
     no-cache: true
+    # 使用 YAML 锚点 &main_script 定义核心代码，下方其他服务直接引用 *main_script
+    content: &main_script |
+      (async () => {
+        // --- 配置区域 ---
+        const SERVICES = {
+          'Netflix': { url: 'https://www.netflix.com/title/81280792', icon: 'play.tv.fill', color: '#E50914' },
+          'Disney':  { url: 'https://www.disneyplus.com/', icon: 'play.circle.fill', color: '#113CCF' },
+          'YouTube': { url: 'https://www.youtube.com/premium', icon: 'play.rectangle.fill', color: '#FF0000' },
+          'TikTok':  { url: 'https://www.tiktok.com/', icon: 'music.note', color: '#000000' },
+          'ChatGPT': { url: 'https://chat.openai.com/cdn-cgi/trace', icon: 'message.fill', color: '#10A37F' }
+        };
+        const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36';
+        
+        // --- 获取当前运行参数 ---
+        // 默认为 Netflix，防止无参数报错
+        const target = typeof $argument !== 'undefined' ? $argument : 'Netflix';
+        const config = SERVICES[target];
+
+        // --- 兜底: 如果参数不对，直接返回 ---
+        if (!config) {
+          $done({ title: '配置错误', content: '未知参数: ' + target, icon: 'xmark.octagon' });
+          return;
+        }
+
+        // --- 核心检测函数 ---
+        const check = async (serviceName) => {
+          return new Promise((resolve) => {
+            const options = { 
+              url: config.url, 
+              headers: { 'User-Agent': UA },
+              timeout: 8000 // 8秒超时
+            };
+
+            // 特殊处理 Disney 的 POST 请求
+            if (serviceName === 'Disney') {
+              options.url = 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql';
+              options.headers['Authorization'] = 'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84';
+              options.headers['Content-Type'] = 'application/json';
+              options.body = JSON.stringify({
+                query: 'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }',
+                variables: { input: { applicationRuntime: 'chrome', attributes: { browserName: 'chrome', browserVersion: '94.0.4606', operatingSystem: 'macintosh' }, deviceFamily: 'browser', deviceProfile: 'macosx' } }
+              });
+              $httpClient.post(options, (err, resp, data) => processResponse(serviceName, err, resp, data, resolve));
+            } else {
+              $httpClient.get(options, (err, resp, data) => processResponse(serviceName, err, resp, data, resolve));
+            }
+          });
+        };
+
+        // --- 响应处理器 ---
+        const processResponse = (name, err, resp, data, resolve) => {
+          if (err) return resolve({ code: 'Error', msg: '网络错误' });
+          if (resp.status !== 200 && resp.status !== 404) return resolve({ code: 'Error', msg: '状态码 ' + resp.status });
+
+          try {
+            // 1. Netflix
+            if (name === 'Netflix') {
+              if (resp.status === 404) return resolve({ code: 'OK', msg: '仅自制剧' });
+              if (resp.status === 403) return resolve({ code: 'Fail', msg: '未解锁' });
+              const url = resp.headers['x-originating-url'];
+              const region = url ? url.split('/')[3].split('-')[0].toUpperCase() : 'US';
+              resolve({ code: 'OK', msg: '已解锁: ' + region });
+            }
+            // 2. YouTube
+            else if (name === 'YouTube') {
+              if (data.includes('Premium is not available in your country')) return resolve({ code: 'Fail', msg: '未解锁' });
+              let region = 'US';
+              const m = /"countryCode":"(.*?)"/.exec(data);
+              if (m) region = m[1];
+              else if (data.includes('www.google.cn')) region = 'CN';
+              resolve({ code: 'OK', msg: 'Premium: ' + region });
+            }
+            // 3. TikTok
+            else if (name === 'TikTok') {
+              const m = /region.*?:.*?"([A-Z]{2})"/ .exec(data);
+              if (!m) return resolve({ code: 'Error', msg: '解析失败' });
+              if (m[1] === 'CN') return resolve({ code: 'Fail', msg: '受限区域' });
+              resolve({ code: 'OK', msg: '已解锁: ' + m[1] });
+            }
+            // 4. ChatGPT
+            else if (name === 'ChatGPT') {
+              if (data.includes('error code: 1020')) return resolve({ code: 'Fail', msg: 'Access Denied' });
+              const m = /loc=([A-Z]{2})/.exec(data);
+              if (m) resolve({ code: 'OK', msg: '已解锁: ' + m[1] });
+              else resolve({ code: 'Fail', msg: '未解锁' });
+            }
+            // 5. Disney
+            else if (name === 'Disney') {
+               const d = JSON.parse(data);
+               if (d.errors) return resolve({ code: 'Fail', msg: '未解锁' });
+               const { location, inSupportedLocation } = d.extensions.sdk.session;
+               if (!inSupportedLocation) return resolve({ code: 'Fail', msg: '即将上线: ' + location.countryCode });
+               resolve({ code: 'OK', msg: '已解锁: ' + location.countryCode });
+            }
+          } catch (e) {
+            resolve({ code: 'Error', msg: '解析错误' });
+          }
+        };
+
+        // --- 执行并输出 ---
+        try {
+          const res = await check(target);
+          const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+          
+          $done({
+            title: target,
+            content: `${res.msg}  [${time}]`,
+            icon: config.icon,
+            'icon-color': res.code === 'OK' ? config.color : (res.code === 'Fail' ? '#999999' : '#FF9500')
+          });
+        } catch (e) {
+          $done({ title: target, content: '运行异常', icon: 'exclamationmark.triangle' });
+        }
+      })();
+
+  # --- 其他服务 (直接引用上方代码) ---
+  disney-check:
     argument: "Disney"
-
-  check-youtube:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
+    interval: 600
     schedule: [manual, network-change]
     no-cache: true
+    content: *main_script
+
+  youtube-check:
     argument: "YouTube"
-
-  check-chatgpt:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
+    interval: 600
     schedule: [manual, network-change]
     no-cache: true
-    argument: "ChatGPT"
+    content: *main_script
 
-  check-tiktok:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
+  tiktok-check:
     argument: "TikTok"
+    interval: 600
+    schedule: [manual, network-change]
+    no-cache: true
+    content: *main_script
+
+  chatgpt-check:
+    argument: "ChatGPT"
+    interval: 600
+    schedule: [manual, network-change]
+    no-cache: true
+    content: *main_script
