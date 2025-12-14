@@ -1,4 +1,4 @@
-name: 增强流媒体检测(独立面板版)
+name: 增强流媒体检测
 desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。在第三方服务中独立显示每个服务的状态。
 author: xiaomingyve1
 update-url: https://github.com/xiaomingyve1/stash
