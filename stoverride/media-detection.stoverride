@@ -1,10 +1,7 @@
-# collapsed-5services-with-meta.stoverride
-# IMPORTANT: 顶部元数据（name / desc / author / update-url）已保留
-# 直接保存并安装即可：collapsed-5services-with-meta.stoverride
-
-name: ip-pure-collapsed-5services
-desc: "IPPure 多平台解锁检测（5 服务）——为 Stash 第三方服务/Availability 面板定制的覆写"
-author: "由 ChatGPT 为代码小白生成（按原检测逻辑保留）"
+# collapsed-5services-with-meta-fixed.stoverride
+name: ip-pure
+desc: "IPPure 多平台解锁检测（5 服务）——为 Stash 第三方服务/Availability 面板定制"
+author: "生成：ChatGPT"
 update-url: "https://link.stash.ws/install-override/fastly.jsdelivr.net/gh/StashNetworks/misc@main/collapsed-tiles/ippure.com-collapsed-tiles.stoverride"
 
 tiles:
@@ -50,8 +47,7 @@ tiles:
 
 script-providers:
   svc-netflix:
-    # Netflix 检测（保持简单、稳健的 200 判定）
-    script: |
+    content: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
@@ -76,8 +72,7 @@ script-providers:
       })();
 
   svc-disney:
-    # Disney+ 检测
-    script: |
+    content: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
@@ -102,8 +97,7 @@ script-providers:
       })();
 
   svc-chatgpt:
-    # ChatGPT 可达性检测（尝试通过 cdn-cgi/trace 获取地区）
-    script: |
+    content: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
@@ -134,8 +128,7 @@ script-providers:
       })();
 
   svc-youtube:
-    # YouTube Premium 检测
-    script: |
+    content: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
@@ -160,8 +153,7 @@ script-providers:
       })();
 
   svc-spotify:
-    # Spotify 检测
-    script: |
+    content: |
       const REQUEST_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' };
       function httpGet(url, headers = {}, timeout = 6000) {
         return new Promise((resolve) => {
