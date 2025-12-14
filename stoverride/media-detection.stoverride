@@ -1,8 +1,7 @@
-# collapsed-5services-with-meta-fixed.stoverride
-name: ip-pure
+# collapsed-5services-with-meta-no-update.stoverride
+name: ip-pure-collapsed-5services
 desc: "IPPure 多平台解锁检测（5 服务）——为 Stash 第三方服务/Availability 面板定制"
-author: "生成：ChatGPT"
-update-url: "https://link.stash.ws/install-override/fastly.jsdelivr.net/gh/StashNetworks/misc@main/collapsed-tiles/ippure.com-collapsed-tiles.stoverride"
+author: "由 ChatGPT 为代码小白生成（按原检测逻辑保留）"
 
 tiles:
   - name: svc-netflix
