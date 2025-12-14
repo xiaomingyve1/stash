@@ -1,59 +1,12 @@
-/**************************************
- * Stash 第三方服务 · 解锁检测脚本
- **************************************/
+tiles:
+  - name: third-party-services
+    title: 服务解锁状态
+    content: 正在检测…
+    icon: checkmark.seal.fill
+    interval: 30
+    collapsed: true
 
-const timeout = 6000;
-
-function httpGet(url, headers = {}) {
-  return new Promise((resolve) => {
-    $httpClient.get(
-      { url, headers, timeout },
-      (error, response, data) => {
-        if (error) resolve(null);
-        else resolve({ status: response.status, data });
-      }
-    );
-  });
-}
-
-async function checkNetflix() {
-  const res = await httpGet("https://www.netflix.com/title/80018499");
-  if (res && res.status === 200) return "Netflix：已解锁";
-  return null;
-}
-
-async function checkDisney() {
-  const res = await httpGet("https://www.disneyplus.com");
-  if (res && res.status === 200) return "Disney+：已解锁";
-  return null;
-}
-
-async function checkChatGPT() {
-  const res = await httpGet("https://chat.openai.com");
-  if (res && res.status === 200) return "ChatGPT：可用";
-  return null;
-}
-
-async function checkYouTube() {
-  const res = await httpGet("https://www.youtube.com/premium");
-  if (res && res.status === 200) return "YouTube Premium：可用";
-  return null;
-}
-
-(async () => {
-  const results = await Promise.all([
-    checkNetflix(),
-    checkDisney(),
-    checkChatGPT(),
-    checkYouTube()
-  ]);
-
-  const unlocked = results.filter(Boolean);
-  const count = unlocked.length;
-
-  $done({
-    title: count > 0 ? `已解锁 ${count} 项服务` : "未解锁任何服务",
-    content: count > 0 ? unlocked.join("\n") : "当前节点未检测到解锁服务",
-    icon: "checkmark.seal.fill"
-  });
-})();
+script-providers:
+  third-party-services:
+    url: https://raw.githubusercontent.com/你的GitHub用户名/你的仓库名/main/media-detection.js
+    interval: 30
