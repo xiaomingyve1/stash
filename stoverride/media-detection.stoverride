@@ -1,6 +1,11 @@
 # collapsed-5services.stoverride
 # 说明：本覆写会在 Stash 的“第三方服务 / Availability”里添加 5 个独立项（collapsed tiles）。
 # 直接安装即可，脚本内嵌，无需外部托管。
+name: 增强流媒体检测
+desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。需要启用“切换策略组时打断连接”防止节点切换缓存。
+author: xiaomingyve1
+update-url: https://github.com/xiaomingyve1/stash
+enable: true
 
 tiles:
   - name: svc-netflix
