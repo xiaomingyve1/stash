@@ -1,172 +1,20 @@
-name: 流媒体检测(第三方服务修复版)
-desc: 模拟 ippure 方案，利用 collapsed 属性强制在第三方服务中显示独立卡片。
+name: 增强流媒体检测
+desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。需要启用“切换策略组时打断连接”防止节点切换缓存。
 author: xiaomingyve1
+update-url: https://github.com/xiaomingyve1/stash
 enable: true
-
-# 【重点修正】
-# 我们不使用 panel-items，而是使用 tiles 并配合 collapsed 属性
-# Stash 会将 collapsed: true 的磁贴自动移动到“第三方服务”列表中
 tiles:
-  - name: netflix-check
-    collapsed: true
-  - name: disney-check
-    collapsed: true
-  - name: youtube-check
-    collapsed: true
-  - name: tiktok-check
-    collapsed: true
-  - name: chatgpt-check
-    collapsed: true
-
+  - name: liumeitijiance
+    icon: "play.tv.fill"
+    label-color: "#FF2D55"
+    background-color: "#FF2D55"
 script-providers:
-  # --- 1. Netflix ---
-  netflix-check:
-    argument: "Netflix"
-    # 【你要求的】强制 30秒 刷新，保持服务活跃
-    interval: 30
-    # 【你要求的】标记为折叠，确保进入服务列表
-    collapsed: true
-    schedule: [manual, network-change]
+  liumeitijiance:
+    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
     no-cache: true
-    content: &main_script |
-      (async () => {
-        const target = typeof $argument !== 'undefined' ? $argument : 'Netflix';
-        
-        // --- 图标与配色 ---
-        const UI = {
-          'Netflix': { icon: 'play.tv.fill', color: '#E50914' },
-          'Disney':  { icon: 'play.circle.fill', color: '#113CCF' },
-          'YouTube': { icon: 'play.rectangle.fill', color: '#FF0000' },
-          'TikTok':  { icon: 'music.note', color: '#000000' },
-          'ChatGPT': { icon: 'message.fill', color: '#10A37F' }
-        };
-        const uiConf = UI[target] || UI['Netflix'];
-
-        // --- 核心逻辑 ---
-        const check = async () => {
-          const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36';
-          
-          // 1. Netflix
-          if (target === 'Netflix') {
-            return new Promise(resolve => {
-              $httpClient.get({url: 'https://www.netflix.com/title/81280792', headers: {'User-Agent': UA}, timeout: 4000}, (e,r,d) => {
-                if(e) return resolve('检测失败');
-                if(r.status===403) return resolve('未解锁');
-                if(r.status===404) return resolve('仅自制剧');
-                if(r.status===200) {
-                   const url = r.headers['x-originating-url'];
-                   const region = url ? url.split('/')[3].split('-')[0].toUpperCase() : 'US';
-                   resolve('已解锁: ' + region);
-                }
-                resolve('检测出错');
-              });
-            });
-          }
-          
-          // 2. Disney+
-          if (target === 'Disney') {
-            return new Promise(resolve => {
-              $httpClient.post({
-                url: 'https://disney.api.edge.bamgrid.com/graph/v1/device/graphql',
-                headers: {'User-Agent': UA, 'Authorization':'ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84', 'Content-Type':'application/json'},
-                body: JSON.stringify({query:'mutation registerDevice($input: RegisterDeviceInput!) { registerDevice(registerDevice: $input) { grant { grantType assertion } } }', variables:{input:{applicationRuntime:'chrome', attributes:{browserName:'chrome', browserVersion:'94.0.4606', operatingSystem:'macintosh'}, deviceFamily:'browser', deviceProfile:'macosx'}}}),
-                timeout: 4000
-              }, (e,r,d) => {
-                if(e) return resolve('检测失败');
-                try {
-                  const j = JSON.parse(d);
-                  if(j.errors) return resolve('未解锁');
-                  const { location, inSupportedLocation } = j.extensions.sdk.session;
-                  if(!inSupportedLocation) return resolve('即将上线: ' + location.countryCode);
-                  resolve('已解锁: ' + location.countryCode);
-                } catch { resolve('未解锁'); }
-              });
-            });
-          }
-
-          // 3. YouTube
-          if (target === 'YouTube') {
-             return new Promise(resolve => {
-               $httpClient.get({url:'https://www.youtube.com/premium', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
-                 if(e||r.status!==200) return resolve('检测失败');
-                 if(d.includes('Premium is not available')) return resolve('未解锁');
-                 const m = /"countryCode":"(.*?)"/.exec(d);
-                 resolve('Premium: ' + (m ? m[1] : 'US'));
-               });
-             });
-          }
-
-          // 4. TikTok
-          if (target === 'TikTok') {
-             return new Promise(resolve => {
-               $httpClient.get({url:'https://www.tiktok.com/', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
-                 if(e) return resolve('检测失败');
-                 const m = /region.*?:.*?"([A-Z]{2})"/ .exec(d);
-                 if(m && m[1]==='CN') return resolve('受限区域');
-                 if(m) return resolve('已解锁: ' + m[1]);
-                 resolve('检测失败');
-               });
-             });
-          }
-
-          // 5. ChatGPT
-          if (target === 'ChatGPT') {
-             return new Promise(resolve => {
-               $httpClient.get({url:'https://chat.openai.com/cdn-cgi/trace', headers:{'User-Agent':UA}, timeout:4000}, (e,r,d)=>{
-                  if(e) return resolve('检测失败');
-                  const m = /loc=([A-Z]{2})/.exec(d);
-                  if(m) resolve('已解锁: ' + m[1]);
-                  else resolve('未解锁');
-               });
-             });
-          }
-          
-          return Promise.resolve('未知服务');
-        };
-
-        // --- 执行输出 ---
-        try {
-           const res = await check();
-           $done({
-             title: target,
-             content: res,
-             icon: uiConf.icon,
-             'icon-color': uiConf.color
-           });
-        } catch(e) {
-           $done({title: target, content: '错误', icon: 'xmark.octagon'});
-        }
-      })();
-
-  # --- 其他 4 个服务 (引用上方脚本) ---
-  disney-check:
-    argument: "Disney"
-    interval: 30
-    collapsed: true
-    schedule: [manual, network-change]
-    no-cache: true
-    content: *main_script
-
-  youtube-check:
-    argument: "YouTube"
-    interval: 30
-    collapsed: true
-    schedule: [manual, network-change]
-    no-cache: true
-    content: *main_script
-
-  tiktok-check:
-    argument: "TikTok"
-    interval: 30
-    collapsed: true
-    schedule: [manual, network-change]
-    no-cache: true
-    content: *main_script
-
-  chatgpt-check:
-    argument: "ChatGPT"
-    interval: 30
-    collapsed: true
-    schedule: [manual, network-change]
-    no-cache: true
-    content: *main_script
+    schedule:
+      - cron: "* * * * *"
+      - interval: 300
+      - network-change
+      - manual
+    policy: no-cache
