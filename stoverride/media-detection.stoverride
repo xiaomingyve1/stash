@@ -1,54 +1,59 @@
-name: 增强流媒体检测
-desc: 支持 Netflix/Disney+/ChatGPT/YouTube/TikTok。在第三方服务中独立显示每个服务的状态。
-author: xiaomingyve1
-update-url: https://github.com/xiaomingyve1/stash
-enable: true
+/**************************************
+ * Stash 第三方服务 · 解锁检测脚本
+ **************************************/
 
-# 【关键】：这里定义了5个独立的面板项
-panel-items:
-  - script: check-netflix
-  - script: check-disney
-  - script: check-youtube
-  - script: check-chatgpt
-  - script: check-tiktok
+const timeout = 6000;
 
-script-providers:
-  # 1. Netflix
-  check-netflix:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
-    argument: "Netflix"
+function httpGet(url, headers = {}) {
+  return new Promise((resolve) => {
+    $httpClient.get(
+      { url, headers, timeout },
+      (error, response, data) => {
+        if (error) resolve(null);
+        else resolve({ status: response.status, data });
+      }
+    );
+  });
+}
 
-  # 2. Disney+
-  check-disney:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
-    argument: "Disney"
+async function checkNetflix() {
+  const res = await httpGet("https://www.netflix.com/title/80018499");
+  if (res && res.status === 200) return "Netflix：已解锁";
+  return null;
+}
 
-  # 3. YouTube
-  check-youtube:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
-    argument: "YouTube"
+async function checkDisney() {
+  const res = await httpGet("https://www.disneyplus.com");
+  if (res && res.status === 200) return "Disney+：已解锁";
+  return null;
+}
 
-  # 4. ChatGPT
-  check-chatgpt:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
-    argument: "ChatGPT"
+async function checkChatGPT() {
+  const res = await httpGet("https://chat.openai.com");
+  if (res && res.status === 200) return "ChatGPT：可用";
+  return null;
+}
 
-  # 5. TikTok
-  check-tiktok:
-    url: https://raw.githubusercontent.com/xiaomingyve1/stash/main/script/media-detection.js
-    interval: 300
-    schedule: [manual, network-change]
-    no-cache: true
-    argument: "TikTok"
+async function checkYouTube() {
+  const res = await httpGet("https://www.youtube.com/premium");
+  if (res && res.status === 200) return "YouTube Premium：可用";
+  return null;
+}
+
+(async () => {
+  const results = await Promise.all([
+    checkNetflix(),
+    checkDisney(),
+    checkChatGPT(),
+    checkYouTube()
+  ]);
+
+  const unlocked = results.filter(Boolean);
+  const count = unlocked.length;
+
+  $done({
+    title: count > 0 ? `已解锁 ${count} 项服务` : "未解锁任何服务",
+    content: count > 0 ? unlocked.join("\n") : "当前节点未检测到解锁服务",
+    icon: "checkmark.seal.fill"
+  });
+})();
